@@ -63,6 +63,15 @@ async function result<T>(source: AsyncGenerator<T>) {
   return res;
 }
 
+async function each<T>(
+  source: AsyncGenerator<T>,
+  fn: (val: T) => Result<void>
+) {
+  for await (const item of source) {
+    await fn(item);
+  }
+}
+
 async function* take<T>(source: AsyncGenerator<T>, count: number) {
   const res: T[] = [];
   for await (const item of source) {
@@ -110,6 +119,7 @@ type Pipeline<T> = {
   jsonStringify: (newLine?: boolean) => Pipeline<string>;
   // through: <U>(fn: (source: Pipeline<T>) => U) => Pipeline<U>;
   result: () => Result<T[]>;
+  each: (fn: (val: T) => Result<void>) => Result<void>;
   split: (separator?: string | RegExp) => Pipeline<string[]>;
   join: (separator?: string) => Pipeline<string>;
   toGenerator: () => AsyncGenerator<T>;
@@ -132,6 +142,7 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     // through: <U>(pipeline: (source: Pipeline<T>) => Pipeline<U>) =>
     //   pipelineBase(pipeline),
     result: () => result(source),
+    each: (fn: (val: T) => Result<void>) => each(source, fn),
     toGenerator: () => source,
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
@@ -159,7 +170,7 @@ const pipeline = () => ({
     .result();
   console.log(res);
 
-  const res2 = await pipeline()
+  await pipeline()
     .from([
       JSON.stringify({ text: "Hello" }),
       JSON.stringify({ text: "World" })
@@ -170,7 +181,6 @@ const pipeline = () => ({
     .split()
     // .join(" ")
     // .through(pipeline => pipeline.map(val => val + val))
-    .jsonStringify(true)
-    .result();
-  console.log(res2);
+    .jsonStringify()
+    .each((val) => console.log(val));
 })();
