@@ -174,6 +174,16 @@ async function* join<T>(source: AsyncGenerator<T>, separator: string = "") {
   yield res.join(separator);
 }
 
+async function* unique<T>(source: AsyncGenerator<T>) {
+  const res = new Set<T>();
+  for await (const item of source) {
+    if (!res.has(item)) {
+      res.add(item);
+      yield item;
+    }
+  }
+}
+
 type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
@@ -189,6 +199,7 @@ type Pipeline<T> = {
   tap: (fn: (val: T) => Result<void>) => Pipeline<T>;
   split: (separator?: string | RegExp) => Pipeline<string[]>;
   join: (separator?: string) => Pipeline<string>;
+  unique: () => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (destination: Writable) => Promise<void>;
@@ -220,7 +231,8 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     pipe: (destination: Writable) => pipe(source, destination),
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
-    join: (separator?: string) => pipelineBase(join(source, separator))
+    join: (separator?: string) => pipelineBase(join(source, separator)),
+    unique: () => pipelineBase(unique(source))
   };
 };
 
@@ -359,6 +371,7 @@ const pipeline = {
   await pipeline
     .fromArray(["a", "b", "c"])
     .flatMap((val) => [val, val])
-    .join("")
+    .unique()
+    .flat()
     .each(console.log);
 })();
