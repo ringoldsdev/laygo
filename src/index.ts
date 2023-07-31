@@ -180,6 +180,7 @@ type Pipeline<T> = {
   take: (count: number) => Pipeline<T>;
   chunk: (size: number) => Pipeline<T[]>;
   flat: () => Pipeline<Unarray<T>>;
+  flatMap: <U>(fn: (val: T) => Result<U[]>) => Pipeline<U>;
   parseJson: () => Pipeline<unknown>;
   jsonStringify: (newLine?: boolean) => Pipeline<string>;
   apply: <U>(fn: (source: Pipeline<T>) => U) => U;
@@ -201,6 +202,8 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     chunk: (size: number) => pipelineBase(chunk(source, size)),
     take: (count: number) => pipelineBase(take(source, count)),
     flat: () => pipelineBase(flat(source)),
+    flatMap: <U>(fn: (val: T) => Result<U[]>) =>
+      pipelineBase(flat(map(source, fn))),
     parseJson: () =>
       pipelineBase(map(source, (val) => JSON.parse(val as unknown as string))),
     jsonStringify: (newLine?: boolean) =>
@@ -301,7 +304,12 @@ const pipeline = {
   // await pipeline.from("abc").apply(doubler).each(console.log);
 
   const simpleDoubler = (pipeline: Pipeline<string>) =>
-    pipeline.map((val) => val + val);
+    pipeline.map(
+      (val) =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(val + val), 10);
+        })
+    );
 
   // const readable2 = new Readable({ read() {} });
 
@@ -347,4 +355,10 @@ const pipeline = {
   const sourcePipeline = pipeline.from("abc").apply(simpleDoubler);
 
   await pipeline.fromPipeline(sourcePipeline).each(console.log);
+
+  await pipeline
+    .fromArray(["a", "b", "c"])
+    .flatMap((val) => [val, val])
+    .join("")
+    .each(console.log);
 })();
