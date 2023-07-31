@@ -1,4 +1,4 @@
-import { Readable } from "stream";
+import { Readable, Writable } from "stream";
 import readline from "readline";
 import { z } from "zod";
 
@@ -19,6 +19,14 @@ async function* streamGenerator(source: Readable) {
   for await (const chunk of source) {
     yield (chunk as Buffer).toString();
   }
+}
+
+async function pipe<T>(source: AsyncGenerator<T>, destination: Writable) {
+  for await (const item of source) {
+    destination.write(item);
+  }
+
+  destination.end();
 }
 
 function streamLineReader(source: Readable, skipEmptyLines = false) {
@@ -165,6 +173,7 @@ type Pipeline<T> = {
   split: (separator?: string | RegExp) => Pipeline<string[]>;
   join: (separator?: string) => Pipeline<string>;
   toGenerator: () => AsyncGenerator<T>;
+  pipe: (destination: Writable) => Promise<void>;
 };
 
 const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
@@ -186,6 +195,7 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     each: (fn: (val: T) => Result<void>) => each(source, fn),
     tap: (fn: (val: T) => Result<void>) => pipelineBase(tap(source, fn)),
     toGenerator: () => source,
+    pipe: (destination: Writable) => pipe(source, destination),
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
     join: (separator?: string) => pipelineBase(join(source, separator))
@@ -278,7 +288,7 @@ const pipeline = {
   const p2 = pipeline
     .fromStreamLineReader(readable2, { skipEmptyLines: true })
     .apply(simpleDoubler)
-    .each(console.log);
+    .pipe(process.stdout);
 
   readable2.push("abd\n\ndef\nghi\n");
   readable2.push(null);
