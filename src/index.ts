@@ -1,11 +1,22 @@
+import { Readable } from "stream";
 import { z } from "zod";
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
 
-async function* sourceGenerator<T>(source: T[]) {
+async function* arrayGenerator<T>(source: T[]) {
   for (const item of source) {
     yield item;
+  }
+}
+
+async function* promiseGenerator<T>(source: Promise<T>) {
+  yield await source;
+}
+
+async function* streamGenerator(source: Readable) {
+  for await (const chunk of source) {
+    yield (chunk as Buffer).toString();
   }
 }
 
@@ -93,6 +104,7 @@ async function* take<T>(source: AsyncGenerator<T>, count: number) {
   yield* res;
 }
 
+// TODO: implement global split by where chunks get accumulated across the whole source
 async function* split<T>(
   source: AsyncGenerator<T>,
   separator: string | RegExp = ""
@@ -152,16 +164,18 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
   };
 };
 
-const pipeline = () => ({
-  from: <T>(source: T[]) => {
-    const generator = sourceGenerator(source);
-    return pipelineBase(generator);
-  }
-});
+const pipeline = {
+  fromArray: <T>(source: T[]) => pipelineBase(arrayGenerator(source)),
+  fromGenerator: <T>(source: AsyncGenerator<T>) => pipelineBase(source),
+  fromPromise: <T>(source: Promise<T>) =>
+    pipelineBase(promiseGenerator(source)),
+  fromReadableStream: (source: Readable) =>
+    pipelineBase(streamGenerator(source))
+};
 
 (async () => {
-  const res = await pipeline()
-    .from(["abc", "def", "ghi"])
+  const res = await pipeline
+    .fromArray(["abc", "def", "ghi"])
     .map((val) => val.toUpperCase())
     .map((val) => val.split(""))
     .take(2)
@@ -172,8 +186,8 @@ const pipeline = () => ({
     .result();
   console.log(res);
 
-  await pipeline()
-    .from([
+  await pipeline
+    .fromArray([
       JSON.stringify({ text: "Hello" }),
       JSON.stringify({ text: "World" })
     ])
@@ -189,5 +203,35 @@ const pipeline = () => ({
   const doubler = (pipeline: Pipeline<string>) =>
     pipeline.map((val) => val + val).filter((val) => val.startsWith("a"));
 
-  await pipeline().from(["abc", "def", "ghi"]).apply(doubler).each(console.log);
+  await pipeline
+    .fromArray(["abc", "def", "ghi"])
+    .apply(doubler)
+    .each(console.log);
+
+  const testAsyncFn = async () => {
+    return ["abc", "def", "ghi"];
+  };
+
+  await pipeline
+    .fromPromise(testAsyncFn())
+    .flat()
+    .apply(doubler)
+    .each(console.log);
+
+  // note the objectMode: true. Otherwise it will buffer all the data and only then start processing
+  const readable = new Readable({ objectMode: true, read() {} });
+
+  const p = pipeline
+    .fromReadableStream(readable)
+    .flat()
+    .apply(doubler)
+    .each(console.log);
+
+  readable.push("abc");
+  readable.push("def");
+  readable.push("ghi");
+
+  readable.push(null);
+
+  await p;
 })();
