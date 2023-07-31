@@ -72,6 +72,16 @@ async function each<T>(
   }
 }
 
+async function* tap<T>(
+  source: AsyncGenerator<T>,
+  fn: (val: T) => Result<void>
+) {
+  for await (const item of source) {
+    await fn(item);
+    yield item;
+  }
+}
+
 async function* take<T>(source: AsyncGenerator<T>, count: number) {
   const res: T[] = [];
   for await (const item of source) {
@@ -100,15 +110,6 @@ async function* join<T>(source: AsyncGenerator<T>, separator: string = "") {
   yield res.join(separator);
 }
 
-// async function* through<T, U>(
-//   source: AsyncGenerator<T>,
-//   fn: (source: AsyncGenerator<T>) => AsyncGenerator<U>
-// ) {
-//   for await (const item of fn(source)) {
-//     yield item;
-//   }
-// }
-
 type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
@@ -117,9 +118,10 @@ type Pipeline<T> = {
   flat: () => Pipeline<Unarray<T>>;
   parseJson: () => Pipeline<unknown>;
   jsonStringify: (newLine?: boolean) => Pipeline<string>;
-  // through: <U>(fn: (source: Pipeline<T>) => U) => Pipeline<U>;
+  apply: <U>(fn: (source: Pipeline<T>) => U) => U;
   result: () => Result<T[]>;
   each: (fn: (val: T) => Result<void>) => Result<void>;
+  tap: (fn: (val: T) => Result<void>) => Pipeline<T>;
   split: (separator?: string | RegExp) => Pipeline<string[]>;
   join: (separator?: string) => Pipeline<string>;
   toGenerator: () => AsyncGenerator<T>;
@@ -139,10 +141,10 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
       newLine
         ? pipelineBase(map(source, (val) => JSON.stringify(val) + "\n"))
         : pipelineBase(map(source, JSON.stringify)),
-    // through: <U>(pipeline: (source: Pipeline<T>) => Pipeline<U>) =>
-    //   pipelineBase(pipeline),
+    apply: <U>(fn: (pipeline: Pipeline<T>) => U) => fn(pipelineBase(source)),
     result: () => result(source),
     each: (fn: (val: T) => Result<void>) => each(source, fn),
+    tap: (fn: (val: T) => Result<void>) => pipelineBase(tap(source, fn)),
     toGenerator: () => source,
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
@@ -166,7 +168,7 @@ const pipeline = () => ({
     .flat()
     .chunk(1)
     .flat()
-    // .through(pipeline => pipeline.map(val => val + val))
+    // .apply(pipeline => pipeline.map(val => val + val))
     .result();
   console.log(res);
 
@@ -180,7 +182,12 @@ const pipeline = () => ({
     .map(({ text }) => text.toUpperCase())
     .split()
     // .join(" ")
-    // .through(pipeline => pipeline.map(val => val + val))
+    // .apply(pipeline => pipeline.map(val => val + val))
     .jsonStringify()
-    .each((val) => console.log(val));
+    .each(console.log);
+
+  const doubler = (pipeline: Pipeline<string>) =>
+    pipeline.map((val) => val + val).filter((val) => val.startsWith("a"));
+
+  await pipeline().from(["abc", "def", "ghi"]).apply(doubler).each(console.log);
 })();
