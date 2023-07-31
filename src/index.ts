@@ -1,4 +1,5 @@
 import { Readable } from "stream";
+import readline from "readline";
 import { z } from "zod";
 
 type Result<T> = T | Promise<T>;
@@ -18,6 +19,33 @@ async function* streamGenerator(source: Readable) {
   for await (const chunk of source) {
     yield (chunk as Buffer).toString();
   }
+}
+
+function streamLineReader(source: Readable, skipEmptyLines = false) {
+  const passthrough = new Readable({ objectMode: true, read: () => {} });
+
+  const rl = readline.createInterface({
+    input: source,
+    crlfDelay: Infinity
+  });
+
+  if (skipEmptyLines) {
+    rl.on("line", (line) => {
+      if (line.length > 0) {
+        passthrough.push(line);
+      }
+    });
+  } else {
+    rl.on("line", (line) => {
+      passthrough.push(line);
+    });
+  }
+
+  rl.on("close", () => {
+    passthrough.push(null);
+  });
+
+  return streamGenerator(passthrough);
 }
 
 async function* flat<T>(source: AsyncGenerator<T>) {
@@ -165,12 +193,17 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
 };
 
 const pipeline = {
+  from: <T>(source: T) => pipelineBase(arrayGenerator([source])),
   fromArray: <T>(source: T[]) => pipelineBase(arrayGenerator(source)),
   fromGenerator: <T>(source: AsyncGenerator<T>) => pipelineBase(source),
   fromPromise: <T>(source: Promise<T>) =>
     pipelineBase(promiseGenerator(source)),
   fromReadableStream: (source: Readable) =>
-    pipelineBase(streamGenerator(source))
+    pipelineBase<string>(streamGenerator(source)),
+  fromStreamLineReader: (
+    source: Readable,
+    { skipEmptyLines = false }: { skipEmptyLines: boolean }
+  ) => pipelineBase<string>(streamLineReader(source, skipEmptyLines))
 };
 
 (async () => {
@@ -234,4 +267,21 @@ const pipeline = {
   readable.push(null);
 
   await p;
+
+  await pipeline.from("abc").apply(doubler).each(console.log);
+
+  const simpleDoubler = (pipeline: Pipeline<string>) =>
+    pipeline.map((val) => val + val);
+
+  const readable2 = new Readable({ read() {} });
+
+  const p2 = pipeline
+    .fromStreamLineReader(readable2, { skipEmptyLines: true })
+    .apply(simpleDoubler)
+    .each(console.log);
+
+  readable2.push("abd\n\ndef\nghi\n");
+  readable2.push(null);
+
+  await p2;
 })();
