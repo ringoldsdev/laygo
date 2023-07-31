@@ -1,6 +1,5 @@
-import { Readable, Writable } from "stream";
+import { Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
-import { z } from "zod";
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -19,6 +18,24 @@ async function* streamGenerator(source: Readable) {
   for await (const chunk of source) {
     yield (chunk as Buffer).toString();
   }
+}
+
+function generatorStream<T>(
+  source: AsyncGenerator<T>,
+  readableOptions: ReadableOptions = {}
+) {
+  return new Readable({
+    objectMode: false,
+    read: async function () {
+      const { value, done } = await source.next();
+      if (done) {
+        this.push(null);
+        return;
+      }
+      this.push(value);
+    },
+    ...readableOptions
+  });
 }
 
 async function pipe<T>(source: AsyncGenerator<T>, destination: Writable) {
@@ -140,7 +157,6 @@ async function* take<T>(source: AsyncGenerator<T>, count: number) {
   yield* res;
 }
 
-// TODO: implement global split by where chunks get accumulated across the whole source
 async function* split<T>(
   source: AsyncGenerator<T>,
   separator: string | RegExp = ""
@@ -173,6 +189,7 @@ type Pipeline<T> = {
   split: (separator?: string | RegExp) => Pipeline<string[]>;
   join: (separator?: string) => Pipeline<string>;
   toGenerator: () => AsyncGenerator<T>;
+  toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (destination: Writable) => Promise<void>;
 };
 
@@ -195,6 +212,8 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     each: (fn: (val: T) => Result<void>) => each(source, fn),
     tap: (fn: (val: T) => Result<void>) => pipelineBase(tap(source, fn)),
     toGenerator: () => source,
+    toStream: (readableOptions: ReadableOptions = {}) =>
+      generatorStream(source, readableOptions),
     pipe: (destination: Writable) => pipe(source, destination),
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
@@ -217,81 +236,110 @@ const pipeline = {
 };
 
 (async () => {
-  const res = await pipeline
-    .fromArray(["abc", "def", "ghi"])
-    .map((val) => val.toUpperCase())
-    .map((val) => val.split(""))
-    .take(2)
-    .flat()
-    .chunk(1)
-    .flat()
-    // .apply(pipeline => pipeline.map(val => val + val))
-    .result();
-  console.log(res);
+  // const res = await pipeline
+  //   .fromArray(["abc", "def", "ghi"])
+  //   .map((val) => val.toUpperCase())
+  //   .map((val) => val.split(""))
+  //   .take(2)
+  //   .flat()
+  //   .chunk(1)
+  //   .flat()
+  //   // .apply(pipeline => pipeline.map(val => val + val))
+  //   .result();
+  // console.log(res);
 
-  await pipeline
-    .fromArray([
-      JSON.stringify({ text: "Hello" }),
-      JSON.stringify({ text: "World" })
-    ])
-    .parseJson()
-    .map(z.object({ text: z.string() }).parse)
-    .map(({ text }) => text.toUpperCase())
-    .split()
-    // .join(" ")
-    // .apply(pipeline => pipeline.map(val => val + val))
-    .jsonStringify()
-    .each(console.log);
+  // await pipeline
+  //   .fromArray([
+  //     JSON.stringify({ text: "Hello" }),
+  //     JSON.stringify({ text: "World" })
+  //   ])
+  //   .parseJson()
+  //   .map(z.object({ text: z.string() }).parse)
+  //   .map(({ text }) => text.toUpperCase())
+  //   .split()
+  //   // .join(" ")
+  //   // .apply(pipeline => pipeline.map(val => val + val))
+  //   .jsonStringify()
+  //   .each(console.log);
 
-  const doubler = (pipeline: Pipeline<string>) =>
-    pipeline.map((val) => val + val).filter((val) => val.startsWith("a"));
+  // const doubler = (pipeline: Pipeline<string>) =>
+  //   pipeline.map((val) => val + val).filter((val) => val.startsWith("a"));
 
-  await pipeline
-    .fromArray(["abc", "def", "ghi"])
-    .apply(doubler)
-    .each(console.log);
+  // await pipeline
+  //   .fromArray(["abc", "def", "ghi"])
+  //   .apply(doubler)
+  //   .each(console.log);
 
-  const testAsyncFn = async () => {
-    return ["abc", "def", "ghi"];
-  };
+  // const testAsyncFn = async () => {
+  //   return ["abc", "def", "ghi"];
+  // };
 
-  await pipeline
-    .fromPromise(testAsyncFn())
-    .flat()
-    .apply(doubler)
-    .each(console.log);
+  // await pipeline
+  //   .fromPromise(testAsyncFn())
+  //   .flat()
+  //   .apply(doubler)
+  //   .each(console.log);
 
-  // note the objectMode: true. Otherwise it will buffer all the data and only then start processing
-  const readable = new Readable({ objectMode: true, read() {} });
+  // // note the objectMode: true. Otherwise it will buffer all the data and only then start processing
+  // const readable = new Readable({ objectMode: true, read() {} });
 
-  const p = pipeline
-    .fromReadableStream(readable)
-    .flat()
-    .apply(doubler)
-    .each(console.log);
+  // const p = pipeline
+  //   .fromReadableStream(readable)
+  //   .flat()
+  //   .apply(doubler)
+  //   .each(console.log);
 
-  readable.push("abc");
-  readable.push("def");
-  readable.push("ghi");
+  // readable.push("abc");
+  // readable.push("def");
+  // readable.push("ghi");
 
-  readable.push(null);
+  // readable.push(null);
 
-  await p;
+  // await p;
 
-  await pipeline.from("abc").apply(doubler).each(console.log);
+  // await pipeline.from("abc").apply(doubler).each(console.log);
 
   const simpleDoubler = (pipeline: Pipeline<string>) =>
     pipeline.map((val) => val + val);
 
-  const readable2 = new Readable({ read() {} });
+  // const readable2 = new Readable({ read() {} });
 
-  const p2 = pipeline
-    .fromStreamLineReader(readable2, { skipEmptyLines: true })
+  // const p2 = pipeline
+  //   .fromStreamLineReader(readable2, { skipEmptyLines: true })
+  //   .apply(simpleDoubler)
+  //   .pipe(process.stdout);
+
+  // readable2.push("abd\n\ndef\nghi\n");
+  // readable2.push(null);
+
+  // await p2;
+
+  // const readable3 = new Readable({ read() {} });
+
+  // const p3 = pipeline
+  //   .fromStreamLineReader(readable3, { skipEmptyLines: true })
+  //   .apply(simpleDoubler)
+  //   .toStream();
+
+  // readable3.push("abd\n\ndef\nghi\n");
+  // readable3.push(null);
+
+  // await asyncPipeline(p3, process.stdout);
+
+  const startTime = process.hrtime();
+
+  const p4 = pipeline
+    .fromArray(Array.from({ length: 5 }, () => "abc"))
     .apply(simpleDoubler)
-    .pipe(process.stdout);
+    .toStream({ objectMode: true });
 
-  readable2.push("abd\n\ndef\nghi\n");
-  readable2.push(null);
+  for await (const chunk of p4) {
+    console.log(chunk);
+  }
 
-  await p2;
+  const endTime = process.hrtime(startTime);
+
+  const totalTime = endTime[0] + endTime[1] / 1000000000;
+
+  console.log(totalTime);
 })();
