@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
 
@@ -72,6 +74,23 @@ async function* take<T>(source: AsyncGenerator<T>, count: number) {
   yield* res;
 }
 
+async function* split<T>(
+  source: AsyncGenerator<T>,
+  separator: string | RegExp = ""
+) {
+  for await (const item of source) {
+    yield (item as string).split(separator);
+  }
+}
+
+async function* join<T>(source: AsyncGenerator<T>, separator: string = "") {
+  const res: unknown[] = [];
+  for await (const item of source) {
+    res.push(item);
+  }
+  yield res.join(separator);
+}
+
 // async function* through<T, U>(
 //   source: AsyncGenerator<T>,
 //   fn: (source: AsyncGenerator<T>) => AsyncGenerator<U>
@@ -87,10 +106,13 @@ type Pipeline<T> = {
   take: (count: number) => Pipeline<T>;
   chunk: (size: number) => Pipeline<T[]>;
   flat: () => Pipeline<Unarray<T>>;
+  parseJson: () => Pipeline<unknown>;
+  jsonStringify: (newLine?: boolean) => Pipeline<string>;
   // through: <U>(fn: (source: Pipeline<T>) => U) => Pipeline<U>;
   result: () => Result<T[]>;
+  split: (separator?: string | RegExp) => Pipeline<string[]>;
+  join: (separator?: string) => Pipeline<string>;
   toGenerator: () => AsyncGenerator<T>;
-  toStream: () => AsyncIterable<T>;
 };
 
 const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
@@ -101,15 +123,19 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     chunk: (size: number) => pipelineBase(chunk(source, size)),
     take: (count: number) => pipelineBase(take(source, count)),
     flat: () => pipelineBase(flat(source)),
+    parseJson: () =>
+      pipelineBase(map(source, (val) => JSON.parse(val as unknown as string))),
+    jsonStringify: (newLine?: boolean) =>
+      newLine
+        ? pipelineBase(map(source, (val) => JSON.stringify(val) + "\n"))
+        : pipelineBase(map(source, JSON.stringify)),
     // through: <U>(pipeline: (source: Pipeline<T>) => Pipeline<U>) =>
     //   pipelineBase(pipeline),
     result: () => result(source),
     toGenerator: () => source,
-    toStream: () => ({
-      [Symbol.asyncIterator]() {
-        return source;
-      }
-    })
+    split: (separator?: string | RegExp) =>
+      pipelineBase(split(source, separator)),
+    join: (separator?: string) => pipelineBase(join(source, separator))
   };
 };
 
@@ -132,4 +158,19 @@ const pipeline = () => ({
     // .through(pipeline => pipeline.map(val => val + val))
     .result();
   console.log(res);
+
+  const res2 = await pipeline()
+    .from([
+      JSON.stringify({ text: "Hello" }),
+      JSON.stringify({ text: "World" })
+    ])
+    .parseJson()
+    .map(z.object({ text: z.string() }).parse)
+    .map(({ text }) => text.toUpperCase())
+    .split()
+    // .join(" ")
+    // .through(pipeline => pipeline.map(val => val + val))
+    .jsonStringify(true)
+    .result();
+  console.log(res2);
 })();
