@@ -232,7 +232,8 @@ const pipeline = {
   fromStreamLineReader: (
     source: Readable,
     { skipEmptyLines = false }: { skipEmptyLines: boolean }
-  ) => pipelineBase<string>(streamLineReader(source, skipEmptyLines))
+  ) => pipelineBase<string>(streamLineReader(source, skipEmptyLines)),
+  fromPipeline: <T>(source: Pipeline<T>) => pipelineBase(source.toGenerator())
 };
 
 (async () => {
@@ -326,20 +327,24 @@ const pipeline = {
 
   // await asyncPipeline(p3, process.stdout);
 
-  const startTime = process.hrtime();
+  // const startTime = process.hrtime();
 
-  const p4 = pipeline
-    .fromArray(Array.from({ length: 5 }, () => "abc"))
-    .apply(simpleDoubler)
-    .toStream({ objectMode: true });
+  // const p4 = pipeline
+  //   .fromArray(Array.from({ length: 5 }, () => "abc"))
+  //   .apply(simpleDoubler)
+  //   .toStream({ objectMode: true });
 
-  for await (const chunk of p4) {
-    console.log(chunk);
-  }
+  // for await (const chunk of p4) {
+  //   console.log(chunk);
+  // }
 
-  const endTime = process.hrtime(startTime);
+  // const endTime = process.hrtime(startTime);
 
-  const totalTime = endTime[0] + endTime[1] / 1000000000;
+  // const totalTime = endTime[0] + endTime[1] / 1000000000;
 
-  console.log(totalTime);
+  // console.log(totalTime);
+
+  const sourcePipeline = pipeline.from("abc").apply(simpleDoubler);
+
+  await pipeline.fromPipeline(sourcePipeline).each(console.log);
 })();
