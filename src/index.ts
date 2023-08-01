@@ -2,8 +2,8 @@ import { Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 
 // TODO: manage stream backpressure
+// TODO: add proper documentation using tsdoc
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
-// TODO: add reduce function
 // TODO: make some functions more strict regarding inputs (use T extends string ? T : never)
 // TODO: add support for multiple sources (array of generator, string, array, promise, etc)
 // TODO: make it possible to name all sources and names will get passed down along with data
@@ -149,6 +149,26 @@ async function each<T>(
   }
 }
 
+async function* reduce<T>(
+  source: AsyncGenerator<T>,
+  key: string | number | symbol,
+  ignoreUndefined = false
+) {
+  const acc: Record<string, T[]> = {};
+  for await (const item of source) {
+    const value = item[key];
+    if (ignoreUndefined && value === undefined) {
+      continue;
+    }
+    if (!(value in acc)) {
+      acc[value] = [item];
+      continue;
+    }
+    acc[value].push(item);
+  }
+  yield acc;
+}
+
 async function* tap<T, U>(
   source: AsyncGenerator<T>,
   fn: (val: T) => Result<U>
@@ -197,6 +217,10 @@ async function* unique<T>(source: AsyncGenerator<T>) {
   }
 }
 
+type ReduceOptions = {
+  ignoreUndefined?: boolean;
+};
+
 export type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
@@ -216,6 +240,10 @@ export type Pipeline<T> = {
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (destination: Writable) => Promise<void>;
+  reduce: (
+    key: string | number | symbol,
+    options?: ReduceOptions
+  ) => Pipeline<Record<string, T[]>>;
 };
 
 const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
@@ -245,7 +273,9 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     split: (separator?: string | RegExp) =>
       pipelineBase(split(source, separator)),
     join: (separator?: string) => pipelineBase(join(source, separator)),
-    unique: () => pipelineBase(unique(source))
+    unique: () => pipelineBase(unique(source)),
+    reduce: (key: string | number | symbol, options?: ReduceOptions) =>
+      pipelineBase(reduce(source, key, options?.ignoreUndefined))
   };
 };
 
