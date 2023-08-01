@@ -34,6 +34,10 @@ function generatorStream<T>(
   source: AsyncGenerator<T>,
   readableOptions: ReadableOptions = {}
 ) {
+  const processValue = readableOptions.objectMode
+    ? <T>(value: T) => value
+    : <T>(value: T) => JSON.stringify(value);
+
   return new Readable({
     objectMode: false,
     read: async function () {
@@ -42,7 +46,7 @@ function generatorStream<T>(
         this.push(null);
         return;
       }
-      this.push(value);
+      this.push(processValue(value));
     },
     ...readableOptions
   });
