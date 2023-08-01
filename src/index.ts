@@ -194,7 +194,7 @@ async function* unique<T>(source: AsyncGenerator<T>) {
   }
 }
 
-type Pipeline<T> = {
+export type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
   take: (count: number) => Pipeline<T>;
@@ -246,7 +246,11 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
   };
 };
 
-const pipeline = {
+type FromStreamLineReaderOptions = {
+  skipEmptyLines?: boolean;
+};
+
+export const laygo = {
   from: <T>(source: T) => pipelineBase(arrayGenerator([source])),
   fromArray: <T>(source: T[]) => pipelineBase(arrayGenerator(source)),
   fromGenerator: <T>(source: AsyncGenerator<T>) => pipelineBase(source),
@@ -256,8 +260,8 @@ const pipeline = {
     pipelineBase<string>(streamGenerator(source)),
   fromStreamLineReader: (
     source: Readable,
-    { skipEmptyLines = false }: { skipEmptyLines: boolean }
-  ) => pipelineBase<string>(streamLineReader(source, skipEmptyLines)),
+    options?: FromStreamLineReaderOptions
+  ) => pipelineBase<string>(streamLineReader(source, options?.skipEmptyLines)),
   fromPipeline: <T>(source: Pipeline<T>) => pipelineBase(source.toGenerator())
 };
 
@@ -273,7 +277,6 @@ const pipeline = {
   //   // .apply(pipeline => pipeline.map(val => val + val))
   //   .result();
   // console.log(res);
-
   // await pipeline
   //   .fromArray([
   //     JSON.stringify({ text: "Hello" }),
@@ -287,101 +290,73 @@ const pipeline = {
   //   // .apply(pipeline => pipeline.map(val => val + val))
   //   .jsonStringify()
   //   .each(console.log);
-
   // const doubler = (pipeline: Pipeline<string>) =>
   //   pipeline.map((val) => val + val).filter((val) => val.startsWith("a"));
-
   // await pipeline
   //   .fromArray(["abc", "def", "ghi"])
   //   .apply(doubler)
   //   .each(console.log);
-
   // const testAsyncFn = async () => {
   //   return ["abc", "def", "ghi"];
   // };
-
   // await pipeline
   //   .fromPromise(testAsyncFn())
   //   .flat()
   //   .apply(doubler)
   //   .each(console.log);
-
   // // note the objectMode: true. Otherwise it will buffer all the data and only then start processing
   // const readable = new Readable({ objectMode: true, read() {} });
-
   // const p = pipeline
   //   .fromReadableStream(readable)
   //   .flat()
   //   .apply(doubler)
   //   .each(console.log);
-
   // readable.push("abc");
   // readable.push("def");
   // readable.push("ghi");
-
   // readable.push(null);
-
   // await p;
-
   // await pipeline.from("abc").apply(doubler).each(console.log);
-
-  const simpleDoubler = (pipeline: Pipeline<string>) =>
-    pipeline.map(
-      (val) =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve(val + val), 10);
-        })
-    );
-
+  // const simpleDoubler = (pipeline: Pipeline<string>) =>
+  //   pipeline.map(
+  //     (val) =>
+  //       new Promise((resolve) => {
+  //         setTimeout(() => resolve(val + val), 10);
+  //       })
+  //   );
   // const readable2 = new Readable({ read() {} });
-
   // const p2 = pipeline
   //   .fromStreamLineReader(readable2, { skipEmptyLines: true })
   //   .apply(simpleDoubler)
   //   .pipe(process.stdout);
-
   // readable2.push("abd\n\ndef\nghi\n");
   // readable2.push(null);
-
   // await p2;
-
   // const readable3 = new Readable({ read() {} });
-
   // const p3 = pipeline
   //   .fromStreamLineReader(readable3, { skipEmptyLines: true })
   //   .apply(simpleDoubler)
   //   .toStream();
-
   // readable3.push("abd\n\ndef\nghi\n");
   // readable3.push(null);
-
   // await asyncPipeline(p3, process.stdout);
-
   // const startTime = process.hrtime();
-
   // const p4 = pipeline
   //   .fromArray(Array.from({ length: 5 }, () => "abc"))
   //   .apply(simpleDoubler)
   //   .toStream({ objectMode: true });
-
   // for await (const chunk of p4) {
   //   console.log(chunk);
   // }
-
   // const endTime = process.hrtime(startTime);
-
   // const totalTime = endTime[0] + endTime[1] / 1000000000;
-
   // console.log(totalTime);
-
-  const sourcePipeline = pipeline.from("abc").apply(simpleDoubler);
-
-  await pipeline.fromPipeline(sourcePipeline).each(console.log);
-
-  await pipeline
-    .fromArray(["a", "b", "c"])
-    .flatMap((val) => [val, val])
-    .unique()
-    .flat()
-    .each(console.log);
+  // const sourcePipeline = laygo.from("abc").apply(simpleDoubler);
+  // await laygo.fromPipeline(sourcePipeline).each(console.log);
+  // await laygo
+  //   .fromArray(["a", "b", "c"])
+  //   .flatMap((val) => [val, val])
+  //   .unique()
+  //   .flat()
+  //   .each(console.log);
 })();
