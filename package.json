@@ -22,20 +22,20 @@
     "typescript": "5.1.6",
     "zod": "^3.21.4"
   },
-  "name": "truba",
+  "name": "laygo",
   "version": "0.0.1",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ringoldsdev/truba.git"
+    "url": "git+https://github.com/ringoldsdev/laygo.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ringoldsdev/truba/issues"
+    "url": "https://github.com/ringoldsdev/laygo/issues"
   },
-  "homepage": "https://github.com/ringoldsdev/truba#readme",
+  "homepage": "https://github.com/ringoldsdev/laygo#readme",
   "description": "Type-safe pipelines for Typescript",
   "husky": {
     "pre-commit": "npm run lint",

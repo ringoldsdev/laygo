@@ -1,4 +1,4 @@
-## Truba
+## Laygo
 
 Type-safe pipelines for Typescript.
 
@@ -18,7 +18,7 @@ Goal is to take what I think are the best parts of those packages and create som
 
 ```ts
 
-const result = await truba()
+const result = await laygo()
     .from(["Hello", "world"])
     .map(val => val.toUpperCase())
     .filter(val => ["HELLO"].includes(val))
@@ -44,7 +44,7 @@ const schema = z.object({
 });
 
 // you can be more strict with types as well
-const pipeline = (p: Pipeline<unknown>) => truba()
+const pipeline = (p: Pipeline<unknown>) => laygo()
     .from(fs.createReadStream("./source.json"))
     .map(JSON.parse)
     .through(p)
@@ -52,8 +52,8 @@ const pipeline = (p: Pipeline<unknown>) => truba()
     .append("\n")
     .pipe(fs.createWriteStream("./destination.json"));
 
-const result = await pipeline((truba) =>
-  truba.map(schema.parse).filter(({ id }) => id < 100)
+const result = await pipeline((laygo) =>
+  laygo.map(schema.parse).filter(({ id }) => id < 100)
 );
 ```
 
