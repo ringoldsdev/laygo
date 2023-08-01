@@ -1,6 +1,16 @@
 import { Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 
+// TODO: manage stream backpressure
+// TODO: create tests
+// TODO: set up CICD and deploy to npm - CICD should test for all major node versions
+// TODO: add reduce function
+// TODO: make some functions more strict regarding inputs (use T extends string ? T : never)
+// TODO: add support for multiple sources (array of generator, string, array, promise, etc)
+// TODO: make it possible to name all sources and names will get passed down along with data
+// TODO: add support for multiple destinations
+// TODO: make it possible to name all destinations and route data based on name
+
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
 
