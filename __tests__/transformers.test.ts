@@ -1,4 +1,4 @@
-import { Pipeline, laygo } from "@src/index";
+import { Pipeline, laygo, Helpers } from "@src/index";
 
 describe("transformers", () => {
   it("should map values", async () => {
@@ -39,35 +39,6 @@ describe("transformers", () => {
   it("should chunk values", async () => {
     const value = await laygo.fromArray([1, 2, 3]).chunk(2).result();
     expect(value).toStrictEqual([[1, 2], [3]]);
-  });
-  it("should parseJson values", async () => {
-    const value = await laygo
-      .fromArray(['{"a":1}', '{"b":2}'])
-      .parseJson()
-      .result();
-    expect(value).toStrictEqual([{ a: 1 }, { b: 2 }]);
-  });
-  it("should stringify values", async () => {
-    const value = await laygo
-      .fromArray([{ a: 1 }, { b: 2 }])
-      .jsonStringify()
-      .result();
-    expect(value).toStrictEqual(['{"a":1}', '{"b":2}']);
-  });
-  it("should split values", async () => {
-    const value = await laygo
-      .fromArray(["a,b", "c,d"])
-      .split(",")
-      .flat()
-      .result();
-    expect(value).toStrictEqual(["a", "b", "c", "d"]);
-  });
-  it("should join values", async () => {
-    const [value] = await laygo
-      .fromArray(["a", "b", "c", "d"])
-      .join(",")
-      .result();
-    expect(value).toStrictEqual("a,b,c,d");
   });
   it("should tap without changing value", async () => {
     let tapped = 0;
@@ -118,5 +89,36 @@ describe("transformers", () => {
     expect(value).toStrictEqual({
       test1: [{ test: "test1", value: 1 }]
     });
+  });
+  it("should collect values", async () => {
+    const value = await laygo.fromArray([1, 2, 3]).collect().result();
+    expect(value).toStrictEqual([[1, 2, 3]]);
+  });
+});
+describe("helpers", () => {
+  it("should split values", async () => {
+    const value = await laygo.from("123456").apply(Helpers.split("")).result();
+    expect(value).toStrictEqual(["1", "2", "3", "4", "5", "6"]);
+  });
+  it("should join values", async () => {
+    const [value] = await laygo
+      .fromArray(["1", "2", "3", "4", "5", "6"])
+      .apply(Helpers.join(""))
+      .result();
+    expect(value).toStrictEqual("123456");
+  });
+  it("should parse json", async () => {
+    const value = await laygo
+      .fromArray(['{"test": "test"}', '{"test": "test2"}'])
+      .apply(Helpers.parseJson)
+      .result();
+    expect(value).toStrictEqual([{ test: "test" }, { test: "test2" }]);
+  });
+  it("should stringify object", async () => {
+    const value = await laygo
+      .fromArray([{ test: "test" }, { test: "test2" }])
+      .apply(Helpers.stringifyJson)
+      .result();
+    expect(value).toStrictEqual(['{"test":"test"}', '{"test":"test2"}']);
   });
 });

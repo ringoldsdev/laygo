@@ -4,7 +4,7 @@ import readline from "readline";
 // TODO: manage stream backpressure
 // TODO: add proper documentation using tsdoc
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
-// TODO: make some functions more strict regarding inputs (use T extends string ? T : never)
+
 // TODO: add support for multiple sources (array of generator, string, array, promise, etc)
 // TODO: make it possible to name all sources and names will get passed down along with data
 // TODO: add support for multiple destinations
@@ -140,9 +140,9 @@ async function result<T>(source: AsyncGenerator<T>) {
   return res;
 }
 
-async function each<T>(
+async function each<T, U>(
   source: AsyncGenerator<T>,
-  fn: (val: T) => Result<void>
+  fn: (val: T) => Result<U>
 ) {
   for await (const item of source) {
     await fn(item);
@@ -179,6 +179,14 @@ async function* tap<T, U>(
   }
 }
 
+async function* collect<T>(source: AsyncGenerator<T>) {
+  const res: T[] = [];
+  for await (const item of source) {
+    res.push(item);
+  }
+  yield res;
+}
+
 async function* take<T>(source: AsyncGenerator<T>, count: number) {
   const res: T[] = [];
   for await (const item of source) {
@@ -188,23 +196,6 @@ async function* take<T>(source: AsyncGenerator<T>, count: number) {
     }
   }
   yield* res;
-}
-
-async function* split<T>(
-  source: AsyncGenerator<T>,
-  separator: string | RegExp = ""
-) {
-  for await (const item of source) {
-    yield (item as string).split(separator);
-  }
-}
-
-async function* join<T>(source: AsyncGenerator<T>, separator: string = "") {
-  const res: unknown[] = [];
-  for await (const item of source) {
-    res.push(item);
-  }
-  yield res.join(separator);
 }
 
 async function* unique<T>(source: AsyncGenerator<T>) {
@@ -228,14 +219,11 @@ export type Pipeline<T> = {
   chunk: (size: number) => Pipeline<T[]>;
   flat: () => Pipeline<Unarray<T>>;
   flatMap: <U>(fn: (val: T) => Result<U[]>) => Pipeline<U>;
-  parseJson: () => Pipeline<unknown>;
-  jsonStringify: (newLine?: boolean) => Pipeline<string>;
+  collect: () => Pipeline<T[]>;
   apply: <U>(fn: (source: Pipeline<T>) => U) => U;
   result: () => Result<T[]>;
-  each: (fn: (val: T) => Result<void>) => Result<void>;
+  each: <U>(fn: (val: T) => Result<U>) => Result<void>;
   tap: <U>(fn: (val: T) => Result<U>) => Pipeline<T>;
-  split: (separator?: string | RegExp) => Pipeline<string[]>;
-  join: (separator?: string) => Pipeline<string>;
   unique: () => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
@@ -256,23 +244,15 @@ const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
     flat: () => pipelineBase(flat(source)),
     flatMap: <U>(fn: (val: T) => Result<U[]>) =>
       pipelineBase(flat(map(source, fn))),
-    parseJson: () =>
-      pipelineBase(map(source, (val) => JSON.parse(val as unknown as string))),
-    jsonStringify: (newLine?: boolean) =>
-      newLine
-        ? pipelineBase(map(source, (val) => JSON.stringify(val) + "\n"))
-        : pipelineBase(map(source, JSON.stringify)),
+    collect: () => pipelineBase(collect(source)),
     apply: <U>(fn: (pipeline: Pipeline<T>) => U) => fn(pipelineBase(source)),
     result: () => result(source),
-    each: (fn: (val: T) => Result<void>) => each(source, fn),
+    each: <U>(fn: (val: T) => Result<U>) => each(source, fn),
     tap: <U>(fn: (val: T) => Result<U>) => pipelineBase(tap(source, fn)),
     toGenerator: () => source,
     toStream: (readableOptions: ReadableOptions = {}) =>
       generatorStream(source, readableOptions),
     pipe: (destination: Writable) => pipe(source, destination),
-    split: (separator?: string | RegExp) =>
-      pipelineBase(split(source, separator)),
-    join: (separator?: string) => pipelineBase(join(source, separator)),
     unique: () => pipelineBase(unique(source)),
     reduce: (key: string | number | symbol, options?: ReduceOptions) =>
       pipelineBase(reduce(source, key, options?.ignoreUndefined))
@@ -296,6 +276,26 @@ export const laygo = {
     options?: FromStreamLineReaderOptions
   ) => pipelineBase<string>(streamLineReader(source, options?.skipEmptyLines)),
   fromPipeline: <T>(source: Pipeline<T>) => pipelineBase(source.toGenerator())
+};
+
+export const Helpers = {
+  split:
+    (separator: string | RegExp = "") =>
+    (pipeline: Pipeline<string>) =>
+      pipeline.flatMap((val) => val.split(separator)),
+  join:
+    (separator: string = "") =>
+    (pipeline: Pipeline<string>) =>
+      pipeline.collect().map((val) => val.join(separator)),
+  trim: (pipeline: Pipeline<string>) => pipeline.map((val) => val.trim()),
+  replace:
+    (searchValue: string | RegExp, replaceValue: string) =>
+    (pipeline: Pipeline<string>) =>
+      pipeline.map((val) => val.replace(searchValue, replaceValue)),
+  parseJson: (pipeline: Pipeline<string>) =>
+    pipeline.map((val) => JSON.parse(val)),
+  stringifyJson: <T>(pipeline: Pipeline<T>) =>
+    pipeline.map((val) => JSON.stringify(val))
 };
 
 export type Laygo = typeof laygo;

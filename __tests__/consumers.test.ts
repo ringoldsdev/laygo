@@ -27,6 +27,11 @@ describe("consumers", () => {
     }
     expect(value).toStrictEqual(["1"]);
   });
+  it("should loop through each value", async () => {
+    const value: number[] = [];
+    await laygo.fromArray([1, 2, 3]).each((v) => value.push(v));
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
   it("should pipe output", async () => {
     const destination = new PassThrough({ objectMode: true, read() {} });
     const pipeline = laygo.fromArray([1, 2, 3]).pipe(destination);
