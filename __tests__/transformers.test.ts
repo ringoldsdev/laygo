@@ -1,81 +1,90 @@
-import { laygo } from "@src/index";
-import { Readable } from "stream";
+import { Pipeline, laygo } from "@src/index";
 
-describe("laygo", () => {
-  describe("producers", () => {
-    it("should return value when using from", async () => {
-      const value = await laygo.from(1).result();
-      expect(value).toStrictEqual([1]);
-    });
-    it("should return value when using fromArray", async () => {
-      const value = await laygo.fromArray([1, 2, 3]).result();
-      expect(value).toStrictEqual([1, 2, 3]);
-    });
-    it("should return value when using fromPromise", async () => {
-      const fn = async () => [1, 2, 3];
-      const value = await laygo.fromPromise(fn()).result();
-      expect(value).toStrictEqual([[1, 2, 3]]);
-    });
-    it("should return value when using fromPromise with a promise object", async () => {
-      const promise = new Promise((resolve) => resolve([1, 2, 3]));
-      const value = await laygo.fromPromise(promise).result();
-      expect(value).toStrictEqual([[1, 2, 3]]);
-    });
-    it("should return value when using fromGenerator", async () => {
-      const fn = async function* () {
-        yield 1;
-        yield 2;
-        yield 3;
-      };
-      const value = await laygo.fromGenerator(fn()).result();
-      expect(value).toStrictEqual([1, 2, 3]);
-    });
-    it("should return value when using fromReadableStream", async () => {
-      // note that objectMode is required for this to work
-      // otherwise the stream will be in buffer mode and return all the data at once
-      const stream = new Readable({ objectMode: true, read() {} });
-
-      const pipeline = laygo.fromReadableStream(stream).result();
-      stream.push(1);
-      stream.push(2);
-      stream.push(3);
-      stream.push(null);
-      const value = await pipeline;
-
-      expect(value).toStrictEqual(["1", "2", "3"]);
-    });
-
-    it("should return value when using fromReadableStream while returning empty lines", async () => {
-      const stream = new Readable({ read() {} });
-
-      const pipeline = laygo.fromStreamLineReader(stream).result();
-      stream.push("1\n2\n3\n\n");
-      stream.push(null);
-      const value = await pipeline;
-
-      expect(value).toStrictEqual(["1", "2", "3", ""]);
-    });
-
-    it("should return value when using fromReadableStream without returning empty lines", async () => {
-      const stream = new Readable({ read() {} });
-
-      const pipeline = laygo
-        .fromStreamLineReader(stream, { skipEmptyLines: true })
-        .result();
-
-      stream.push("1\n2\n\n3\n\n");
-      stream.push(null);
-
-      const value = await pipeline;
-
-      expect(value).toStrictEqual(["1", "2", "3"]);
-    });
-    it("should return value when using fromReadableStream without returning empty lines", async () => {
-      const pipeline = laygo.fromArray([1, 2, 3]);
-
-      const value = await laygo.fromPipeline(pipeline).result();
-
-      expect(value).toStrictEqual([1, 2, 3]);
-    });
+describe("transformers", () => {
+  it("should map values", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3])
+      .map((v) => v * 2)
+      .result();
+    expect(value).toStrictEqual([2, 4, 6]);
+  });
+  it("should filter values", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3])
+      .filter((v) => v % 2 === 0)
+      .result();
+    expect(value).toStrictEqual([2]);
+  });
+  it("should flatten values", async () => {
+    const value = await laygo
+      .fromArray([
+        [1, 2],
+        [3, 4]
+      ])
+      .flat()
+      .result();
+    expect(value).toStrictEqual([1, 2, 3, 4]);
+  });
+  it("should flatMap values", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3])
+      .flatMap((v) => [v, v])
+      .result();
+    expect(value).toStrictEqual([1, 1, 2, 2, 3, 3]);
+  });
+  it("should take 2 values", async () => {
+    const value = await laygo.fromArray([1, 2, 3]).take(2).result();
+    expect(value).toStrictEqual([1, 2]);
+  });
+  it("should chunk values", async () => {
+    const value = await laygo.fromArray([1, 2, 3]).chunk(2).result();
+    expect(value).toStrictEqual([[1, 2], [3]]);
+  });
+  it("should parseJson values", async () => {
+    const value = await laygo
+      .fromArray(['{"a":1}', '{"b":2}'])
+      .parseJson()
+      .result();
+    expect(value).toStrictEqual([{ a: 1 }, { b: 2 }]);
+  });
+  it("should stringify values", async () => {
+    const value = await laygo
+      .fromArray([{ a: 1 }, { b: 2 }])
+      .jsonStringify()
+      .result();
+    expect(value).toStrictEqual(['{"a":1}', '{"b":2}']);
+  });
+  it("should split values", async () => {
+    const value = await laygo
+      .fromArray(["a,b", "c,d"])
+      .split(",")
+      .flat()
+      .result();
+    expect(value).toStrictEqual(["a", "b", "c", "d"]);
+  });
+  it("should join values", async () => {
+    const [value] = await laygo
+      .fromArray(["a", "b", "c", "d"])
+      .join(",")
+      .result();
+    expect(value).toStrictEqual("a,b,c,d");
+  });
+  it("should tap without changing value", async () => {
+    let tapped = 0;
+    const value = await laygo
+      .fromArray([1, 2, 3])
+      .tap((val) => tapped++)
+      .result();
+    expect(value).toStrictEqual([1, 2, 3]);
+    expect(tapped).toStrictEqual(3);
+  });
+  it("should output unique values", async () => {
+    const value = await laygo.fromArray([1, 2, 3, 2, 1]).unique().result();
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
+  it("should apply a defined module", async () => {
+    const module = (pipeline: Pipeline<number>) => pipeline.map((v) => v * 2);
+    const value = await laygo.fromArray([1, 2, 3]).apply(module).result();
+    expect(value).toStrictEqual([2, 4, 6]);
   });
 });
