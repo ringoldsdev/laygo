@@ -2,7 +2,6 @@ import { Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 
 // TODO: manage stream backpressure
-// TODO: add proper documentation using tsdoc
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
 // TODO: add support for multiple sources (array of generator, string, array, promise, etc)
@@ -208,6 +207,28 @@ async function* unique<T>(source: AsyncGenerator<T>) {
   }
 }
 
+async function* split(
+  source: AsyncGenerator<string>,
+  separator: string | RegExp,
+  limit?: number
+) {
+  for await (const item of source) {
+    const str = item.toString();
+    const parts = str.split(separator, limit);
+    for (const part of parts) {
+      yield part;
+    }
+  }
+}
+
+async function* join(source: AsyncGenerator<string>, delimiter: string = "") {
+  let parts: string = "";
+  for await (const item of source) {
+    parts += item + delimiter;
+  }
+  yield parts;
+}
+
 type ReduceOptions = {
   ignoreUndefined?: boolean;
 };
@@ -232,12 +253,28 @@ export type Pipeline<T> = {
     key: string | number | symbol,
     options?: ReduceOptions
   ) => Pipeline<Record<string, T[]>>;
+  // You can specify type of this to restrict preceding values to be strings
+  // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#specifying-the-type-of-this-for-functions
+  split: (
+    this: Pipeline<string>,
+    separator: string | RegExp,
+    limit?: number
+  ) => Pipeline<string>;
+  join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
 };
 
 function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let generator: AsyncGenerator<any> = source;
   return {
+    split(this: Pipeline<string>, separator: string | RegExp, limit?: number) {
+      generator = split(generator, separator, limit);
+      return this;
+    },
+    join(this: Pipeline<string>, delimiter?: string) {
+      generator = join(generator, delimiter);
+      return this;
+    },
     map<U>(fn: (val: T) => Result<U>) {
       generator = map(generator, fn);
       return this;
@@ -318,14 +355,6 @@ export const laygo = {
 };
 
 export const Helpers = {
-  split:
-    (separator: string | RegExp = "") =>
-    (pipeline: Pipeline<string>) =>
-      pipeline.flatMap((val) => val.split(separator)),
-  join:
-    (separator: string = "") =>
-    (pipeline: Pipeline<string>) =>
-      pipeline.collect().map((val) => val.join(separator)),
   trim: (pipeline: Pipeline<string>) => pipeline.map((val) => val.trim()),
   replace:
     (searchValue: string | RegExp, replaceValue: string) =>

@@ -89,23 +89,20 @@ describe("transformers", () => {
     const value = await laygo.fromArray([1, 2, 3]).collect().result();
     expect(value).toStrictEqual([[1, 2, 3]]);
   });
+  it("should split values", async () => {
+    const value = await laygo.from("123").split("").result();
+    expect(value).toStrictEqual(["1", "2", "3"]);
+  });
+  it("should join values", async () => {
+    const [value] = await laygo.fromArray(["1", "2", "3"]).join().result();
+    expect(value).toStrictEqual("123");
+  });
 });
 describe("helpers", () => {
   it("should apply a defined module", async () => {
     const module = (pipeline: Pipeline<number>) => pipeline.map((v) => v * 2);
     const value = await laygo.fromArray([1, 2, 3]).apply(module).result();
     expect(value).toStrictEqual([2, 4, 6]);
-  });
-  it("should split values", async () => {
-    const value = await laygo.from("123456").apply(Helpers.split("")).result();
-    expect(value).toStrictEqual(["1", "2", "3", "4", "5", "6"]);
-  });
-  it("should join values", async () => {
-    const [value] = await laygo
-      .fromArray(["1", "2", "3", "4", "5", "6"])
-      .apply(Helpers.join(""))
-      .result();
-    expect(value).toStrictEqual("123456");
   });
   it("should parse json", async () => {
     const value = await laygo
