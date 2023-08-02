@@ -234,48 +234,87 @@ export type Pipeline<T> = {
   ) => Pipeline<Record<string, T[]>>;
 };
 
-const pipelineBase = <T>(source: AsyncGenerator<T>): Pipeline<T> => {
+function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let generator: AsyncGenerator<any> = source;
   return {
-    map: <U>(fn: (val: T) => Result<U>) => pipelineBase(map(source, fn)),
-    filter: (fn: (val: T) => Result<boolean>) =>
-      pipelineBase(filter(source, fn)),
-    chunk: (size: number) => pipelineBase(chunk(source, size)),
-    take: (count: number) => pipelineBase(take(source, count)),
-    flat: () => pipelineBase(flat(source)),
-    flatMap: <U>(fn: (val: T) => Result<U[]>) =>
-      pipelineBase(flat(map(source, fn))),
-    collect: () => pipelineBase(collect(source)),
-    apply: <U>(fn: (pipeline: Pipeline<T>) => U) => fn(pipelineBase(source)),
-    result: () => result(source),
-    each: <U>(fn: (val: T) => Result<U>) => each(source, fn),
-    tap: <U>(fn: (val: T) => Result<U>) => pipelineBase(tap(source, fn)),
-    toGenerator: () => source,
-    toStream: (readableOptions: ReadableOptions = {}) =>
-      generatorStream(source, readableOptions),
-    pipe: (destination: Writable) => pipe(source, destination),
-    unique: () => pipelineBase(unique(source)),
+    map<U>(fn: (val: T) => Result<U>) {
+      generator = map(generator, fn);
+      return this;
+    },
+    filter(fn: (val: T) => Result<boolean>) {
+      generator = filter(generator, fn);
+      return this;
+    },
+    chunk(size: number) {
+      generator = chunk(generator, size);
+      return this;
+    },
+    take(count: number) {
+      generator = take(generator, count);
+      return this;
+    },
+    flat() {
+      generator = flat(generator);
+      return this;
+    },
+    flatMap<U>(fn: (val: T) => Result<U[]>) {
+      generator = flat(map(generator, fn));
+      return this;
+    },
+    collect() {
+      generator = collect(generator);
+      return this;
+    },
+    apply<U>(fn: (src: Pipeline<T>) => U) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fn(this) as any;
+      return this;
+    },
+    result() {
+      return result(generator);
+    },
+    each<U>(fn: (val: T) => Result<U>) {
+      return each(generator, fn);
+    },
+    tap<U>(fn: (val: T) => Result<U>) {
+      generator = tap(generator, fn);
+      return this;
+    },
+    toGenerator() {
+      return generator;
+    },
+    toStream(readableOptions: ReadableOptions = {}) {
+      return generatorStream(generator, readableOptions);
+    },
+    pipe(destination: Writable) {
+      return pipe(generator, destination);
+    },
+    unique() {
+      generator = unique(generator);
+      return this;
+    },
     reduce: (key: string | number | symbol, options?: ReduceOptions) =>
-      pipelineBase(reduce(source, key, options?.ignoreUndefined))
+      pipeline(reduce(source, key, options?.ignoreUndefined))
   };
-};
+}
 
 type FromStreamLineReaderOptions = {
   skipEmptyLines?: boolean;
 };
 
 export const laygo = {
-  from: <T>(source: T) => pipelineBase(arrayGenerator([source])),
-  fromArray: <T>(source: T[]) => pipelineBase(arrayGenerator(source)),
-  fromGenerator: <T>(source: AsyncGenerator<T>) => pipelineBase(source),
-  fromPromise: <T>(source: Promise<T>) =>
-    pipelineBase(promiseGenerator(source)),
+  from: <T>(source: T) => pipeline(arrayGenerator([source])),
+  fromArray: <T>(source: T[]) => pipeline(arrayGenerator(source)),
+  fromGenerator: <T>(source: AsyncGenerator<T>) => pipeline(source),
+  fromPromise: <T>(source: Promise<T>) => pipeline(promiseGenerator(source)),
   fromReadableStream: (source: Readable) =>
-    pipelineBase<string>(streamGenerator(source)),
+    pipeline<string>(streamGenerator(source)),
   fromStreamLineReader: (
     source: Readable,
     options?: FromStreamLineReaderOptions
-  ) => pipelineBase<string>(streamLineReader(source, options?.skipEmptyLines)),
-  fromPipeline: <T>(source: Pipeline<T>) => pipelineBase(source.toGenerator())
+  ) => pipeline<string>(streamLineReader(source, options?.skipEmptyLines)),
+  fromPipeline: <T>(source: Pipeline<T>) => pipeline(source.toGenerator())
 };
 
 export const Helpers = {

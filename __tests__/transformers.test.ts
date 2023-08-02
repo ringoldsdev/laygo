@@ -53,11 +53,6 @@ describe("transformers", () => {
     const value = await laygo.fromArray([1, 2, 3, 2, 1]).unique().result();
     expect(value).toStrictEqual([1, 2, 3]);
   });
-  it("should apply a defined module", async () => {
-    const module = (pipeline: Pipeline<number>) => pipeline.map((v) => v * 2);
-    const value = await laygo.fromArray([1, 2, 3]).apply(module).result();
-    expect(value).toStrictEqual([2, 4, 6]);
-  });
   it("should reduce values", async () => {
     const [value] = await laygo
       .fromArray([
@@ -96,6 +91,11 @@ describe("transformers", () => {
   });
 });
 describe("helpers", () => {
+  it("should apply a defined module", async () => {
+    const module = (pipeline: Pipeline<number>) => pipeline.map((v) => v * 2);
+    const value = await laygo.fromArray([1, 2, 3]).apply(module).result();
+    expect(value).toStrictEqual([2, 4, 6]);
+  });
   it("should split values", async () => {
     const value = await laygo.from("123456").apply(Helpers.split("")).result();
     expect(value).toStrictEqual(["1", "2", "3", "4", "5", "6"]);
