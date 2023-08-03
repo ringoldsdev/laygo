@@ -1,5 +1,5 @@
 import { laygo } from "@src/index";
-import { PassThrough } from "stream";
+import { PassThrough, Writable } from "stream";
 
 describe("consumers", () => {
   it("should return value when using result", async () => {
@@ -32,15 +32,22 @@ describe("consumers", () => {
     await laygo.fromArray([1, 2, 3]).each((v) => value.push(v));
     expect(value).toStrictEqual([1, 2, 3]);
   });
-  it("should pipe output", async () => {
-    const destination = new PassThrough({ objectMode: true, read() {} });
-    const pipeline = laygo.fromArray([1, 2, 3]).pipe(destination);
-
+  it("should pipe output and manage backpressure", async () => {
     const res: number[] = [];
 
-    for await (const v of destination) {
-      res.push(v);
-    }
+    const destination = new Writable({
+      objectMode: true,
+      async write(chunk, encoding, next) {
+        res.push(chunk);
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.random() * 90 + 10)
+        );
+        next();
+      },
+      highWaterMark: 1
+    });
+
+    const pipeline = laygo.fromArray([1, 2, 3]).pipe(destination);
 
     await pipeline;
 

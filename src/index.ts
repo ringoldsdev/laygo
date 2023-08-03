@@ -1,7 +1,7 @@
 import { Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
+import events from "events";
 
-// TODO: manage stream backpressure
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
 // TODO: add support for multiple sources (array of generator, string, array, promise, etc)
@@ -52,9 +52,10 @@ function generatorStream<T>(
 
 async function pipe<T>(source: AsyncGenerator<T>, destination: Writable) {
   for await (const item of source) {
-    destination.write(item);
+    const canWrite = destination.write(item);
+    if (canWrite) continue;
+    await events.once(destination, "drain");
   }
-
   destination.end();
 }
 
