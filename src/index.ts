@@ -18,8 +18,10 @@ async function* arrayGenerator<T>(source: T[]) {
   }
 }
 
-async function* promiseGenerator<T>(source: Promise<T>) {
-  yield await source;
+async function* promiseGenerator<T>(...source: Promise<T>[]) {
+  for (const item of await Promise.all(source)) {
+    yield item;
+  }
 }
 
 async function* streamGenerator(source: Readable) {
@@ -345,7 +347,8 @@ export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
   fromArray: <T>(source: T[]) => pipeline(arrayGenerator(source)),
   fromGenerator: <T>(source: AsyncGenerator<T>) => pipeline(source),
-  fromPromise: <T>(source: Promise<T>) => pipeline(promiseGenerator(source)),
+  fromPromise: <T>(...sources: Promise<T>[]) =>
+    pipeline(promiseGenerator(...sources)),
   fromReadableStream: (source: Readable) =>
     pipeline<string>(streamGenerator(source)),
   fromStreamLineReader: (

@@ -15,6 +15,14 @@ describe("producers", () => {
     const value = await laygo.fromPromise(fn()).result();
     expect(value).toStrictEqual([[1, 2, 3]]);
   });
+  it("should return value when using fromPromise and multiple promises", async () => {
+    const fn = async () => 1;
+    const fn2 = async () => 2;
+    const fn3 = async () => 3;
+    const promises = [fn(), fn2(), fn3()];
+    const value = await laygo.fromPromise(...promises).result();
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
   it("should return value when using fromPromise with a promise object", async () => {
     const promise = new Promise((resolve) => resolve([1, 2, 3]));
     const [value] = await laygo.fromPromise(promise).result();
