@@ -10,6 +10,10 @@ describe("producers", () => {
     const value = await laygo.fromArray([1, 2, 3]).result();
     expect(value).toStrictEqual([1, 2, 3]);
   });
+  it("should return value when using fromArray and multiple arrays", async () => {
+    const value = await laygo.fromArray([1, 2], [3]).result();
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
   it("should return value when using fromPromise", async () => {
     const fn = async () => [1, 2, 3];
     const value = await laygo.fromPromise(fn()).result();
@@ -37,6 +41,19 @@ describe("producers", () => {
     const value = await laygo.fromGenerator(fn()).result();
     expect(value).toStrictEqual([1, 2, 3]);
   });
+  it("should return value when using fromGenerator and multiple generators", async () => {
+    const fn1 = async function* () {
+      yield 1;
+    };
+    const fn2 = async function* () {
+      yield 2;
+    };
+    const fn3 = async function* () {
+      yield 3;
+    };
+    const value = await laygo.fromGenerator(fn1(), fn2(), fn3()).result();
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
   it("should return value when using fromReadableStream", async () => {
     // note that objectMode is required for this to work
     // otherwise the stream will be in buffer mode and return all the data at once
@@ -49,7 +66,7 @@ describe("producers", () => {
     stream.push(null);
     const value = await pipeline;
 
-    expect(value).toStrictEqual(["1", "2", "3"]);
+    expect(value).toStrictEqual([1, 2, 3]);
   });
 
   it("should return value when using fromReadableStream while returning empty lines", async () => {
@@ -77,10 +94,54 @@ describe("producers", () => {
 
     expect(value).toStrictEqual(["1", "2", "3"]);
   });
+
   it("should return value when using fromReadableStream without returning empty lines", async () => {
+    const stream = new Readable({ read() {} });
+
+    const pipeline = laygo
+      .fromStreamLineReader(stream, { skipEmptyLines: true })
+      .result();
+
+    stream.push("1\n2\n\n3\n\n");
+    stream.push(null);
+
+    const value = await pipeline;
+
+    expect(value).toStrictEqual(["1", "2", "3"]);
+  });
+
+  it("should return value when using fromReadableStream without returning empty lines and using multiple streams", async () => {
+    const stream1 = new Readable({ read() {} });
+    const stream2 = new Readable({ read() {} });
+
+    const pipeline = laygo
+      .fromStreamLineReader([stream1, stream2], { skipEmptyLines: true })
+      .result();
+
+    stream1.push("1\n2\n\n");
+    stream1.push(null);
+
+    stream2.push("3\n\n");
+    stream2.push(null);
+
+    const value = await pipeline;
+
+    expect(value).toStrictEqual(["1", "2", "3"]);
+  });
+
+  it("should return value when using fromPipeline", async () => {
     const pipeline = laygo.fromArray([1, 2, 3]);
 
     const value = await laygo.fromPipeline(pipeline).result();
+
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
+
+  it("should return value when using fromPipeline using multiple pipelines", async () => {
+    const pipeline1 = laygo.fromArray([1, 2]);
+    const pipeline2 = laygo.fromArray([3]);
+
+    const value = await laygo.fromPipeline(pipeline1, pipeline2).result();
 
     expect(value).toStrictEqual([1, 2, 3]);
   });

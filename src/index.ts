@@ -4,17 +4,26 @@ import events from "events";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
-// TODO: add support for multiple sources (array of generator, string, array, promise, etc)
-// TODO: make it possible to name all sources and names will get passed down along with data
-// TODO: add support for multiple destinations
-// TODO: make it possible to name all destinations and route data based on name
+// TODO: add support for multiple pipeable destinations
+// Destination gets determined by running a function on the input data that returns a destination
+// Initially accept streams, but later make it work with pipelines
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
 
-async function* arrayGenerator<T>(source: T[]) {
-  for (const item of source) {
-    yield item;
+async function* arrayGenerator<T>(...sources: T[][]) {
+  for (const source of sources) {
+    for (const item of source) {
+      yield item;
+    }
+  }
+}
+
+async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
+  for (const source of sources) {
+    for await (const item of source) {
+      yield item;
+    }
   }
 }
 
@@ -24,9 +33,12 @@ async function* promiseGenerator<T>(...source: Promise<T>[]) {
   }
 }
 
-async function* streamGenerator(source: Readable) {
-  for await (const chunk of source) {
-    yield (chunk as Buffer).toString();
+async function* streamGenerator(...sources: Readable[]) {
+  for (const source of sources) {
+    for await (const chunk of source) {
+      yield chunk;
+    }
+    source.destroy();
   }
 }
 
@@ -61,31 +73,37 @@ async function pipe<T>(source: AsyncGenerator<T>, destination: Writable) {
   destination.end();
 }
 
-function streamLineReader(source: Readable, skipEmptyLines = false) {
-  const passthrough = new Readable({ objectMode: true, read: () => {} });
+function streamLineReader(sources: Readable[], skipEmptyLines = false) {
+  const streams: Readable[] = [];
 
-  const rl = readline.createInterface({
-    input: source,
-    crlfDelay: Infinity
-  });
+  for (const source of sources) {
+    const readable = new Readable({ objectMode: true, read: () => {} });
 
-  if (skipEmptyLines) {
-    rl.on("line", (line) => {
-      if (line.length > 0) {
-        passthrough.push(line);
-      }
+    const rl = readline.createInterface({
+      input: source,
+      crlfDelay: Infinity
     });
-  } else {
-    rl.on("line", (line) => {
-      passthrough.push(line);
+
+    if (skipEmptyLines) {
+      rl.on("line", (line) => {
+        if (line.length > 0) {
+          readable.push(line);
+        }
+      });
+    } else {
+      rl.on("line", (line) => {
+        readable.push(line);
+      });
+    }
+
+    rl.on("close", () => {
+      readable.push(null);
+      source.destroy();
     });
+
+    streams.push(readable);
   }
-
-  rl.on("close", () => {
-    passthrough.push(null);
-  });
-
-  return streamGenerator(passthrough);
+  return streamGenerator(...streams);
 }
 
 async function* flat<T>(source: AsyncGenerator<T>) {
@@ -345,17 +363,27 @@ type FromStreamLineReaderOptions = {
 
 export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
-  fromArray: <T>(source: T[]) => pipeline(arrayGenerator(source)),
-  fromGenerator: <T>(source: AsyncGenerator<T>) => pipeline(source),
+  fromArray: <T>(...sources: T[][]) => pipeline(arrayGenerator(...sources)),
+  fromGenerator: <T>(...sources: AsyncGenerator<T>[]) =>
+    pipeline(generatorGenerator(...sources)),
   fromPromise: <T>(...sources: Promise<T>[]) =>
     pipeline(promiseGenerator(...sources)),
-  fromReadableStream: (source: Readable) =>
-    pipeline<string>(streamGenerator(source)),
+  fromReadableStream: (...sources: Readable[]) =>
+    pipeline<string>(streamGenerator(...sources)),
   fromStreamLineReader: (
-    source: Readable,
+    sources: Readable[] | Readable,
     options?: FromStreamLineReaderOptions
-  ) => pipeline<string>(streamLineReader(source, options?.skipEmptyLines)),
-  fromPipeline: <T>(source: Pipeline<T>) => pipeline(source.toGenerator())
+  ) =>
+    pipeline<string>(
+      streamLineReader(
+        Array.isArray(sources) ? sources : [sources],
+        options?.skipEmptyLines
+      )
+    ),
+  fromPipeline: <T>(...sources: Pipeline<T>[]) =>
+    pipeline(
+      generatorGenerator(...sources.map((source) => source.toGenerator()))
+    )
 };
 
 export const Helpers = {
