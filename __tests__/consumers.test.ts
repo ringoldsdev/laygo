@@ -115,4 +115,34 @@ describe("consumers", () => {
     expect(res1).toStrictEqual([1, 2, 3]);
     expect(res2).toStrictEqual([1, 2, 3]);
   });
+  it("should conditionally pipe data", async () => {
+    const newDestination = (res: number[]) => {
+      return new Writable({
+        objectMode: true,
+        async write(chunk, encoding, next) {
+          res.push(chunk);
+          next();
+        },
+        highWaterMark: 1
+      });
+    };
+
+    const odd: number[] = [];
+    const even: number[] = [];
+
+    const destination1 = newDestination(odd);
+    const destination2 = newDestination(even);
+
+    const pipeline = laygo
+      .fromArray([1, 2, 3])
+      .pipe(
+        { destination: destination1, condition: (val) => val % 2 !== 0 },
+        { destination: destination2, condition: (val) => val % 2 === 0 }
+      );
+
+    await pipeline;
+
+    expect(odd).toStrictEqual([1, 3]);
+    expect(even).toStrictEqual([2]);
+  });
 });

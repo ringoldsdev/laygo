@@ -4,12 +4,10 @@ import events from "events";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
-// TODO: add support for multiple pipeable destinations
-// [DONE] start by adding support for multiple pipeable sources
-// [IN PROGRESS] then add support for specifying a function that verifies whether data should get written to the destination
-
 // TODO: add a handle function that wraps the pipeline and allows for local error handling
 // maybe base it on the apply function but create a new pipeline under the hood?
+
+// TODO: implement branching based on event emitter
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -109,29 +107,53 @@ function generatorStream<T>(
   });
 }
 
-type PipeDestination = Writable | Writable[];
+type ConditionalWriteable<T> = {
+  destination: Writable;
+  condition: (data: T) => Result<boolean>;
+};
 
-const processPipeDestinations = (destinations: PipeDestination) => {
+type PipeDestination<T> = Writable | ConditionalWriteable<T>;
+
+const processPipeDestinations = <T>(destinations: PipeDestination<T>[]) => {
   return (Array.isArray(destinations) ? destinations : [destinations]).map(
-    (destination) => ({
-      // write function will be replaced with a function that checks whether data can be written to the destination
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async write(data: any): Promise<boolean> {
-        return destination.write(data);
-      },
-      async drain(canWrite: boolean) {
-        if (canWrite) return;
-        await events.once(destination, "drain");
-        return;
-      },
-      end: destination.end.bind(destination)
-    })
+    (destination) => {
+      if (destination instanceof Writable) {
+        return {
+          // write function will be replaced with a function that checks whether data can be written to the destination
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async write(data: any): Promise<boolean> {
+            return destination.write(data);
+          },
+          async drain(canWrite: boolean) {
+            if (canWrite) return;
+            await events.once(destination, "drain");
+            return;
+          },
+          end: destination.end.bind(destination)
+        };
+      }
+      return {
+        // write function will be replaced with a function that checks whether data can be written to the destination
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async write(data: any): Promise<boolean> {
+          const conditionMet = await destination.condition(data);
+          if (!conditionMet) return true; // have to inverse the logic otherwise drain will wait forever
+          return destination.destination.write(data);
+        },
+        async drain(canWrite: boolean) {
+          if (canWrite) return;
+          await events.once(destination.destination, "drain");
+          return;
+        },
+        end: destination.destination.end.bind(destination.destination)
+      };
+    }
   );
 };
 
 async function pipe<T>(
   source: AsyncGenerator<T>,
-  destinations: PipeDestination
+  destinations: PipeDestination<T>[]
 ) {
   const processedDestinations = processPipeDestinations(destinations);
   for await (const item of source) {
@@ -343,7 +365,7 @@ export type Pipeline<T> = {
   unique: () => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
-  pipe: (...destinations: Writable[]) => Promise<void>;
+  pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
   reduce: (
     key: string | number | symbol,
     options?: ReduceOptions
@@ -419,7 +441,7 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     toStream(readableOptions: ReadableOptions = {}) {
       return generatorStream(generator, readableOptions);
     },
-    pipe(...destinations: Writable[]) {
+    pipe(...destinations: PipeDestination<T>[]) {
       return pipe(generator, destinations);
     },
     unique() {
