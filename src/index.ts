@@ -8,6 +8,7 @@ import events from "events";
 // maybe base it on the apply function but create a new pipeline under the hood?
 
 // TODO: implement branching based on event emitter
+// branching is the last function that awaits the result of branches
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -159,6 +160,20 @@ async function pipe<T>(
   destinations: PipeDestination<T>[]
 ) {
   const processedDestinations = processPipeDestinations(destinations);
+
+  if (processedDestinations.length === 0) return;
+  if (processedDestinations.length === 1) {
+    const destination = processedDestinations[0];
+    for await (const item of source) {
+      const conditionMet = await destination.isConditionMet(item);
+      if (!conditionMet) return;
+      const isDraining = await destination.write(item);
+      await destination.drain(isDraining);
+    }
+    destination.end();
+    return;
+  }
+
   for await (const item of source) {
     await Promise.all(
       processedDestinations.map(async (destination) => {
@@ -176,7 +191,11 @@ async function pipe<T>(
 
 async function pipeFirst<T>(
   source: AsyncGenerator<T>,
-  destinations: PipeDestination<T>[]
+  destinations: [
+    PipeDestination<T>,
+    PipeDestination<T>,
+    ...PipeDestination<T>[]
+  ]
 ) {
   const processedDestinations = processPipeDestinations(destinations);
   for await (const item of source) {
@@ -390,7 +409,13 @@ export type Pipeline<T> = {
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
-  pipeFirst: (...destinations: PipeDestination<T>[]) => Promise<void>;
+  pipeFirst: (
+    ...destinations: [
+      PipeDestination<T>,
+      PipeDestination<T>,
+      ...PipeDestination<T>[]
+    ]
+  ) => Promise<void>;
   reduce: (
     key: string | number | symbol,
     options?: ReduceOptions
@@ -469,7 +494,13 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     pipe(...destinations: PipeDestination<T>[]) {
       return pipe(generator, destinations);
     },
-    pipeFirst(...destinations: PipeDestination<T>[]) {
+    pipeFirst(
+      ...destinations: [
+        PipeDestination<T>,
+        PipeDestination<T>,
+        ...PipeDestination<T>[]
+      ]
+    ) {
       return pipeFirst(generator, destinations);
     },
     unique() {
