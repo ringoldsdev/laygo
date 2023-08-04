@@ -389,6 +389,24 @@ async function* join(source: AsyncGenerator<string>, delimiter: string = "") {
   yield parts;
 }
 
+async function branch<T, U>(
+  source: AsyncGenerator<T>,
+  branches: ((src: Pipeline<T>) => Result<U>)[]
+) {
+  const events = new EventEmitter();
+
+  const builtBranches = branches.map((branch) =>
+    laygo.fromEventEmitter(events).apply(branch)
+  );
+
+  for await (const item of source) {
+    events.emit("data", item);
+  }
+  events.emit("end");
+
+  return builtBranches;
+}
+
 type ReduceOptions = {
   ignoreUndefined?: boolean;
 };
@@ -428,6 +446,9 @@ export type Pipeline<T> = {
     limit?: number
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
+  branch: <U>(
+    ...branches: ((src: Pipeline<T>) => Result<U>)[]
+  ) => Promise<Result<U>[]>;
 };
 
 function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
@@ -471,9 +492,7 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       return this;
     },
     apply<U>(fn: (src: Pipeline<T>) => U) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      fn(this) as any;
-      return this;
+      return fn(this);
     },
     result() {
       return result(generator);
@@ -508,7 +527,10 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       return this;
     },
     reduce: (key: string | number | symbol, options?: ReduceOptions) =>
-      pipeline(reduce(source, key, options?.ignoreUndefined))
+      pipeline(reduce(source, key, options?.ignoreUndefined)),
+    branch: async <U>(...branches: ((src: Pipeline<T>) => Result<U>)[]) => {
+      return await branch(generator, branches);
+    }
   };
 }
 
