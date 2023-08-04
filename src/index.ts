@@ -1,7 +1,6 @@
 import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 import events from "events";
-import fromEmitter from "@async-generators/from-emitter";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
@@ -58,16 +57,26 @@ function mergeEventEmitters(...sources: EventEmitter[]) {
   return emitter;
 }
 
-async function* eventEmitterGenerator(sources: EventEmitter[]) {
+function eventEmitterGenerator(
+  sources: EventEmitter[],
+  readableOptions: Omit<ReadableOptions, "objectMode"> = {}
+) {
   const eventEmitter = mergeEventEmitters(...sources);
-  // TODO: queue incoming events if the consumer is too slow to consume them
-  for await (const item of fromEmitter(eventEmitter, {
-    onDone: "end",
-    onError: "error",
-    onNext: "data"
-  })) {
-    yield item;
-  }
+
+  const readable = new Readable({
+    objectMode: true,
+    read() {},
+    ...readableOptions
+  });
+
+  eventEmitter.on("data", (data) => {
+    readable.push(data);
+  });
+  eventEmitter.on("end", () => {
+    readable.push(null);
+  });
+
+  return streamGenerator(readable);
 }
 
 async function* promiseGenerator<T>(...source: Promise<T>[]) {

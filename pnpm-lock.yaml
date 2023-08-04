@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@async-generators/from-emitter':
-    specifier: ^0.3.0
-    version: 0.3.0
   '@src':
     specifier: link:src
     version: link:src
@@ -73,27 +70,6 @@ packages:
       '@jridgewell/gen-mapping': 0.3.3
       '@jridgewell/trace-mapping': 0.3.18
     dev: true
-
-  /@async-generators/from-emitter@0.3.0:
-    resolution: {integrity: sha512-9ne/GfJfbw77wuA08WtuNIvMhpDwAEPT/GX/Dn33y/Bu1zKqO0bOWmcWTpLiHrO2vedEbW0GihfkG7EINEghsA==}
-    engines: {node: '>=9.0.0'}
-    dependencies:
-      '@async-generators/subject': 0.4.0
-      '@async-generators/terminator': 0.4.0
-    dev: false
-
-  /@async-generators/subject@0.4.0:
-    resolution: {integrity: sha512-ydMe58ouMupnJlvBq6SaG6ranw1uX6rcAfAVE37oNJLen9RJ1+sY6yju8xp6en8RwWn3gBtAx03ot1Ycr3U0QQ==}
-    engines: {node: '>=9.0.0'}
-    dependencies:
-      '@async-generators/terminator': 0.4.0
-      events: 1.1.1
-    dev: false
-
-  /@async-generators/terminator@0.4.0:
-    resolution: {integrity: sha512-Kj08FqHgdx4QZ1mwJrlN3L2MWNNWHHWSQezfClxMUvGU1pYjoRa/4Yev1U/2Y71aqDDXEYC7pr13HNv7Un7Kog==}
-    engines: {node: '>=9.0.0'}
-    dev: false
 
   /@babel/code-frame@7.22.5:
     resolution: {integrity: sha512-Xmwn266vad+6DAqEB2A6V/CcZVp62BbwVmcOJc2RPuwih1kw02TjQvWVWlcKGbBPd+8/0V5DEkOcizRGYsspYQ==}
@@ -1627,11 +1603,6 @@ packages:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
     dev: true
-
-  /events@1.1.1:
-    resolution: {integrity: sha512-kEcvvCBByWXGnZy6JUlgAp2gBIUjfCAV6P6TgT1/aaQKcmuAEC4OZTV1I4EWQLz2gxZw76atuVyvHhTxvi0Flw==}
-    engines: {node: '>=0.4.x'}
-    dev: false
 
   /execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}

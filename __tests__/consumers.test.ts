@@ -1,5 +1,5 @@
 import { laygo } from "@src/index";
-import { PassThrough, Writable } from "stream";
+import { EventEmitter, PassThrough, Writable } from "stream";
 
 describe("consumers", () => {
   it("should return value when using result", async () => {
@@ -52,5 +52,37 @@ describe("consumers", () => {
     await pipeline;
 
     expect(res).toStrictEqual([1, 2, 3]);
+  });
+  it("should emit data events to a slow consumer", async () => {
+    const res: number[] = [];
+
+    const numberCount = 100;
+
+    const destination = new Writable({
+      objectMode: true,
+      async write(chunk, encoding, next) {
+        res.push(chunk);
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.random() * 8 + 2)
+        );
+        next();
+      },
+      highWaterMark: 1
+    });
+
+    const emitter = new EventEmitter();
+
+    const pipeline = laygo.fromEventEmitter(emitter).pipe(destination);
+
+    for (let i = 0; i < numberCount; i++) {
+      emitter.emit("data", i + 1);
+    }
+    emitter.emit("end");
+
+    await pipeline;
+
+    expect(res).toStrictEqual(
+      Array.from({ length: numberCount }, (_, i) => i + 1)
+    );
   });
 });

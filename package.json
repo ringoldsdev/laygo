@@ -6,7 +6,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@async-generators/from-emitter": "^0.3.0",
     "@src": "link:src"
   },
   "devDependencies": {
