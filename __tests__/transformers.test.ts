@@ -97,6 +97,16 @@ describe("transformers", () => {
     const [value] = await laygo.fromArray(["1", "2", "3"]).join().result();
     expect(value).toStrictEqual("123");
   });
+  it("should handle errors", async () => {
+    const fn = () =>
+      laygo
+        .fromArray(["1", "2", "3"])
+        .map((val) => {
+          throw new Error("Error");
+        })
+        .result();
+    expect(fn).rejects.toThrow("Error");
+  });
 });
 describe("helpers", () => {
   it("should apply a defined module", async () => {
