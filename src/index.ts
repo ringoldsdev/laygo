@@ -391,7 +391,7 @@ async function* join(source: AsyncGenerator<string>, delimiter: string = "") {
 
 async function branch<T, U>(
   source: AsyncGenerator<T>,
-  branches: ((src: Pipeline<T>) => Result<U>)[]
+  branches: ((src: Pipeline<T>) => U)[]
 ) {
   const events = new EventEmitter();
 
@@ -411,6 +411,8 @@ type ReduceOptions = {
   ignoreUndefined?: boolean;
 };
 
+type ExistingPipeline<T, U> = (source: Pipeline<T>) => U;
+
 export type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
@@ -419,8 +421,8 @@ export type Pipeline<T> = {
   flat: () => Pipeline<Unarray<T>>;
   flatMap: <U>(fn: (val: T) => Result<U[]>) => Pipeline<U>;
   collect: () => Pipeline<T[]>;
-  apply: <U>(fn: (source: Pipeline<T>) => U) => U;
-  result: () => Result<T[]>;
+  apply: <U>(fn: ExistingPipeline<T, U>) => U;
+  result: () => Promise<T[]>;
   each: <U>(fn: (val: T) => Result<U>) => Result<void>;
   tap: <U>(fn: (val: T) => Result<U>) => Pipeline<T>;
   unique: () => Pipeline<T>;
@@ -446,9 +448,8 @@ export type Pipeline<T> = {
     limit?: number
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
-  branch: <U>(
-    ...branches: ((src: Pipeline<T>) => Result<U>)[]
-  ) => Promise<Result<U>[]>;
+  branch: <U>(...branches: ExistingPipeline<T, U>[]) => Promise<U[]>;
+  // branch: <U>(...branches: ((src: Pipeline<T>) => U)[]) => Promise<U[]>;
 };
 
 function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
@@ -528,7 +529,9 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     reduce: (key: string | number | symbol, options?: ReduceOptions) =>
       pipeline(reduce(source, key, options?.ignoreUndefined)),
-    branch: async <U>(...branches: ((src: Pipeline<T>) => Result<U>)[]) => {
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    branch: async (...branches: ExistingPipeline<T, any>[]) => {
       return await branch(generator, branches);
     }
   };
