@@ -40,7 +40,7 @@ describe("consumers", () => {
       async write(chunk, encoding, next) {
         res.push(chunk);
         await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * 90 + 10)
+          setTimeout(resolve, Math.random() * 8 + 2)
         );
         next();
       },
@@ -84,5 +84,35 @@ describe("consumers", () => {
     expect(res).toStrictEqual(
       Array.from({ length: numberCount }, (_, i) => i + 1)
     );
+  });
+  it("should emit data events to multiple slow consumers", async () => {
+    const newDestination = (res: number[]) => {
+      return new Writable({
+        objectMode: true,
+        async write(chunk, encoding, next) {
+          res.push(chunk);
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.random() * 8 + 2)
+          );
+          next();
+        },
+        highWaterMark: 1
+      });
+    };
+
+    const res1: number[] = [];
+    const res2: number[] = [];
+
+    const destination1 = newDestination(res1);
+    const destination2 = newDestination(res2);
+
+    const pipeline = laygo
+      .fromArray([1, 2, 3])
+      .pipe(destination1, destination2);
+
+    await pipeline;
+
+    expect(res1).toStrictEqual([1, 2, 3]);
+    expect(res2).toStrictEqual([1, 2, 3]);
   });
 });

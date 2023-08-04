@@ -5,8 +5,8 @@ import events from "events";
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
 // TODO: add support for multiple pipeable destinations
-// Destination gets determined by running a function on the input data that returns a destination
-// Initially accept streams, but later make it work with pipelines
+// start by adding support for multiple pipeable sources
+// then add support for specifying a function that verifies whether data should get written to the destination
 
 // TODO: add a handle function that wraps the pipeline and allows for local error handling
 // maybe base it on the apply function but create a new pipeline under the hood?
@@ -116,13 +116,42 @@ function generatorStream<T>(
   });
 }
 
-async function pipe<T>(source: AsyncGenerator<T>, destination: Writable) {
+type PipeDestination = Writable | Writable[];
+
+const processPipeDestinations = (destinations: PipeDestination) => {
+  return (Array.isArray(destinations) ? destinations : [destinations]).map(
+    (destination) => ({
+      // write function will be replaced with a function that checks whether data can be written to the destination
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async write(data: any): Promise<boolean> {
+        return destination.write(data);
+      },
+      async drain(canWrite: boolean) {
+        if (canWrite) return;
+        await events.once(destination, "drain");
+        return;
+      },
+      end: destination.end.bind(destination)
+    })
+  );
+};
+
+async function pipe<T>(
+  source: AsyncGenerator<T>,
+  destinations: PipeDestination
+) {
+  const processedDestinations = processPipeDestinations(destinations);
   for await (const item of source) {
-    const canWrite = destination.write(item);
-    if (canWrite) continue;
-    await events.once(destination, "drain");
+    await Promise.all(
+      processedDestinations.map(async (destination) => {
+        const canWrite = await destination.write(item);
+        await destination.drain(canWrite);
+      })
+    );
   }
-  destination.end();
+  for (const destination of processedDestinations) {
+    destination.end();
+  }
 }
 
 function streamLineReader(sources: Readable[], skipEmptyLines = false) {
@@ -321,7 +350,7 @@ export type Pipeline<T> = {
   unique: () => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
-  pipe: (destination: Writable) => Promise<void>;
+  pipe: (...destinations: Writable[]) => Promise<void>;
   reduce: (
     key: string | number | symbol,
     options?: ReduceOptions
@@ -397,8 +426,8 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     toStream(readableOptions: ReadableOptions = {}) {
       return generatorStream(generator, readableOptions);
     },
-    pipe(destination: Writable) {
-      return pipe(generator, destination);
+    pipe(...destinations: Writable[]) {
+      return pipe(generator, destinations);
     },
     unique() {
       generator = unique(generator);
