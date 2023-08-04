@@ -1,12 +1,23 @@
-import { Readable, ReadableOptions, Writable } from "stream";
+import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 import events from "events";
+import fromEmitter from "@async-generators/from-emitter";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
 // TODO: add support for multiple pipeable destinations
 // Destination gets determined by running a function on the input data that returns a destination
 // Initially accept streams, but later make it work with pipelines
+
+// TODO: add a handle function that wraps the pipeline and allows for local error handling
+// maybe base it on the apply function but create a new pipeline under the hood?
+
+// this framework is implemented using a pull based approach
+// you need to add a consumer and only then the pipeline will start flowing
+// if I add a branching function, it effectively implements a push based approach
+
+// probably best to start by adding a simple branching function that works like a map that evaluates two pipelines side to side and then merges all results
+// it would require creating a generator per branch so the value gets duplicated
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -24,6 +35,38 @@ async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
     for await (const item of source) {
       yield item;
     }
+  }
+}
+
+function mergeEventEmitters(...sources: EventEmitter[]) {
+  if (sources.length === 1) return sources[0];
+
+  const emitter = new events.EventEmitter();
+
+  let ended = 0;
+
+  for (const source of sources) {
+    source.on("data", (data) => emitter.emit("data", data));
+    // end only when all event emitters have emitted end
+    source.on("end", () => {
+      ended++;
+      if (ended === sources.length) emitter.emit("end");
+    });
+    source.on("error", (error) => emitter.emit("error", error));
+  }
+
+  return emitter;
+}
+
+async function* eventEmitterGenerator(sources: EventEmitter[]) {
+  const eventEmitter = mergeEventEmitters(...sources);
+  // TODO: queue incoming events if the consumer is too slow to consume them
+  for await (const item of fromEmitter(eventEmitter, {
+    onDone: "end",
+    onError: "error",
+    onNext: "data"
+  })) {
+    yield item;
   }
 }
 
@@ -370,6 +413,10 @@ export const laygo = {
     pipeline(promiseGenerator(...sources)),
   fromReadableStream: (...sources: Readable[]) =>
     pipeline<string>(streamGenerator(...sources)),
+  fromEventEmitter: (sources: EventEmitter | EventEmitter[]) =>
+    pipeline(
+      eventEmitterGenerator(Array.isArray(sources) ? sources : [sources])
+    ),
   fromStreamLineReader: (
     sources: Readable[] | Readable,
     options?: FromStreamLineReaderOptions

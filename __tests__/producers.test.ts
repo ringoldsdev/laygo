@@ -1,5 +1,5 @@
 import { laygo } from "@src/index";
-import { Readable } from "stream";
+import { EventEmitter, Readable } from "stream";
 
 describe("producers", () => {
   it("should return value when using from", async () => {
@@ -144,5 +144,40 @@ describe("producers", () => {
     const value = await laygo.fromPipeline(pipeline1, pipeline2).result();
 
     expect(value).toStrictEqual([1, 2, 3]);
+  });
+
+  it("should return value when using fromEventEmitter", async () => {
+    const emitter = new EventEmitter();
+
+    const value = laygo.fromEventEmitter(emitter).result();
+
+    emitter.emit("data", 1);
+    emitter.emit("data", 2);
+    emitter.emit("data", 3);
+    emitter.emit("end");
+
+    expect(await value).toStrictEqual([1, 2, 3]);
+  });
+
+  it("should return value when using fromEventEmitter using multiple event emitters", async () => {
+    const emitter1 = new EventEmitter();
+    const emitter2 = new EventEmitter();
+    const emitter3 = new EventEmitter();
+
+    const value = laygo
+      .fromEventEmitter([emitter1, emitter2, emitter3])
+      .result();
+
+    emitter1.emit("data", 1);
+    emitter1.emit("data", 2);
+    emitter2.emit("data", 3);
+    emitter2.emit("data", 4);
+    emitter3.emit("data", 5);
+    emitter3.emit("data", 6);
+    emitter1.emit("end");
+    emitter2.emit("end");
+    emitter3.emit("end");
+
+    expect(await value).toStrictEqual([1, 2, 3, 4, 5, 6]);
   });
 });
