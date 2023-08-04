@@ -5,18 +5,11 @@ import events from "events";
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
 // TODO: add support for multiple pipeable destinations
-// start by adding support for multiple pipeable sources
-// then add support for specifying a function that verifies whether data should get written to the destination
+// [DONE] start by adding support for multiple pipeable sources
+// [IN PROGRESS] then add support for specifying a function that verifies whether data should get written to the destination
 
 // TODO: add a handle function that wraps the pipeline and allows for local error handling
 // maybe base it on the apply function but create a new pipeline under the hood?
-
-// this framework is implemented using a pull based approach
-// you need to add a consumer and only then the pipeline will start flowing
-// if I add a branching function, it effectively implements a push based approach
-
-// probably best to start by adding a simple branching function that works like a map that evaluates two pipelines side to side and then merges all results
-// it would require creating a generator per branch so the value gets duplicated
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
