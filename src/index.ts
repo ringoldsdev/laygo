@@ -119,13 +119,16 @@ const processPipeDestinations = <T>(destinations: PipeDestination<T>[]) => {
     (destination) => {
       if (destination instanceof Writable) {
         return {
-          // write function will be replaced with a function that checks whether data can be written to the destination
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async isConditionMet(): Promise<boolean> {
+            return true;
+          },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           async write(data: any): Promise<boolean> {
             return destination.write(data);
           },
-          async drain(canWrite: boolean) {
-            if (canWrite) return;
+          async drain(isDraining: boolean) {
+            if (isDraining) return;
             await events.once(destination, "drain");
             return;
           },
@@ -133,15 +136,15 @@ const processPipeDestinations = <T>(destinations: PipeDestination<T>[]) => {
         };
       }
       return {
-        // write function will be replaced with a function that checks whether data can be written to the destination
+        async isConditionMet(data: T): Promise<boolean> {
+          return destination.condition(data);
+        },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async write(data: any): Promise<boolean> {
-          const conditionMet = await destination.condition(data);
-          if (!conditionMet) return true; // have to inverse the logic otherwise drain will wait forever
           return destination.destination.write(data);
         },
-        async drain(canWrite: boolean) {
-          if (canWrite) return;
+        async drain(isDraining: boolean) {
+          if (isDraining) return;
           await events.once(destination.destination, "drain");
           return;
         },
@@ -159,10 +162,31 @@ async function pipe<T>(
   for await (const item of source) {
     await Promise.all(
       processedDestinations.map(async (destination) => {
-        const canWrite = await destination.write(item);
-        await destination.drain(canWrite);
+        const conditionMet = await destination.isConditionMet(item);
+        if (!conditionMet) return;
+        const isDraining = await destination.write(item);
+        await destination.drain(isDraining);
       })
     );
+  }
+  for (const destination of processedDestinations) {
+    destination.end();
+  }
+}
+
+async function pipeFirst<T>(
+  source: AsyncGenerator<T>,
+  destinations: PipeDestination<T>[]
+) {
+  const processedDestinations = processPipeDestinations(destinations);
+  for await (const item of source) {
+    for (const destination of processedDestinations) {
+      const conditionMet = await destination.isConditionMet(item);
+      if (!conditionMet) continue;
+      const isDraining = await destination.write(item);
+      await destination.drain(isDraining);
+      break;
+    }
   }
   for (const destination of processedDestinations) {
     destination.end();
@@ -366,6 +390,7 @@ export type Pipeline<T> = {
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
+  pipeFirst: (...destinations: PipeDestination<T>[]) => Promise<void>;
   reduce: (
     key: string | number | symbol,
     options?: ReduceOptions
@@ -443,6 +468,9 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     pipe(...destinations: PipeDestination<T>[]) {
       return pipe(generator, destinations);
+    },
+    pipeFirst(...destinations: PipeDestination<T>[]) {
+      return pipeFirst(generator, destinations);
     },
     unique() {
       generator = unique(generator);
