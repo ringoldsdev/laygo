@@ -1,6 +1,7 @@
 import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
 import readline from "readline";
 import events from "events";
+import { ForkableGenerator, createForkableGenerator } from "./fork";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
@@ -450,11 +451,14 @@ export type Pipeline<T> = {
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
   branch: <U>(...branches: ExistingPipeline<T, U>[]) => Promise<U[]>;
   // branch: <U>(...branches: ((src: Pipeline<T>) => U)[]) => Promise<U[]>;
+  fork: () => Pipeline<T>;
 };
 
 function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let generator: AsyncGenerator<any> = source;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let forkedGenerator: ForkableGenerator<any>;
   return {
     split(this: Pipeline<string>, separator: string | RegExp, limit?: number) {
       generator = split(generator, separator, limit);
@@ -533,6 +537,13 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     branch: async (...branches: ExistingPipeline<T, any>[]) => {
       return await branch(generator, branches);
+    },
+    fork: () => {
+      if (!forkedGenerator) {
+        forkedGenerator = createForkableGenerator(generator);
+        generator = forkedGenerator.fork();
+      }
+      return pipeline(forkedGenerator.fork());
     }
   };
 }
