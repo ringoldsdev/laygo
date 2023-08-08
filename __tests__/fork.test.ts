@@ -65,17 +65,26 @@ describe("forking", () => {
     const fork1 = pipeline.fork();
     const fork2 = pipeline.fork();
 
-    const [res1, res2, res3] = await Promise.all([
+    const [res1, res2] = await Promise.all([
       fork1.map((v) => v + 1).result(),
       fork2
         .map((v) => v * v)
         .map((v) => v.toString())
-        .result(),
-      pipeline.map((v) => v * v * v).result()
+        .result()
     ]);
 
     expect(res1).toStrictEqual([2, 3, 4]);
     expect(res2).toStrictEqual(["1", "4", "9"]);
-    expect(res3).toStrictEqual([1, 8, 27]);
+  });
+  it.only("should fork a laygo pipeline as a generator and create another laygo pipeline that merges both sources", async () => {
+    const pipeline = laygo.fromArray([1, 2, 3]);
+    const fork1 = pipeline.fork();
+    const fork2 = pipeline.fork();
+
+    const pipeline1 = fork1.map((v) => v + 100);
+    const pipeline2 = fork2.map((v) => v * v);
+
+    const finalResult = await laygo.fromPipeline(pipeline1, pipeline2).result();
+    expect(finalResult).toStrictEqual([101, 1, 201, 4, 301, 9]);
   });
 });

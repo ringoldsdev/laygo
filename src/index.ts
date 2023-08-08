@@ -22,6 +22,9 @@ async function* arrayGenerator<T>(...sources: T[][]) {
   }
 }
 
+// TODO: implement a round robin generator so that it works with forked pipelines
+// loading each generator one by one goes against how forked pipelines work
+// probably should be implemented as a helper function that gets called from the fromPipeline function
 async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
   for (const source of sources) {
     for await (const item of source) {
@@ -541,7 +544,6 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     fork: () => {
       if (!forkedGenerator) {
         forkedGenerator = createForkableGenerator(generator);
-        generator = forkedGenerator.fork();
       }
       return pipeline(forkedGenerator.fork());
     }
