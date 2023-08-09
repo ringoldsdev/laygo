@@ -12,6 +12,9 @@ import { ForkableGenerator, createForkableGenerator } from "./fork";
 // TODO: map, filter, etc should accept a second parameter that handles errors
 // second param should be an object where the key is an error type and the value is a function that handles the error
 
+// TODO: deprecate branch function - it's not really needed
+// TODO: improve reduce function to work closer to the array reduce function
+
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
 
@@ -23,9 +26,7 @@ async function* arrayGenerator<T>(...sources: T[][]) {
   }
 }
 
-// TODO: implement a round robin generator so that it works with forked pipelines
-// loading each generator one by one goes against how forked pipelines work
-// probably should be implemented as a helper function that gets called from the fromPipeline function
+// TODO: deprecate in favour of merge function
 async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
   for (const source of sources) {
     for await (const item of source) {
