@@ -8,8 +8,9 @@ import { ForkableGenerator, createForkableGenerator } from "./fork";
 // TODO: add a handle function that wraps the pipeline and allows for local error handling
 // maybe base it on the apply function but create a new pipeline under the hood?
 
-// TODO: implement branching based on event emitter
-// branching is the last function that awaits the result of branches
+// TODO: add throw function - should accept a function that either returns true or false and an error object
+// TODO: map, filter, etc should accept a second parameter that handles errors
+// second param should be an object where the key is an error type and the value is a function that handles the error
 
 type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -650,9 +651,12 @@ function fromPipeline<T>(...sources: Pipeline<T>[]) {
 
 export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
+  // TODO: fromArray should support different input types
   fromArray: <T>(...sources: T[][]) => pipeline(arrayGenerator(...sources)),
+  // TODO: fromGenerator should support different input types
   fromGenerator: <T>(...sources: AsyncGenerator<T>[]) =>
     pipeline(generatorGenerator(...sources)),
+  // TODO: fromPromise should support different input types
   fromPromise: <T>(...sources: Promise<T>[]) =>
     pipeline(promiseGenerator(...sources)),
   fromReadableStream: (...sources: Readable[]) =>
