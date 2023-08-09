@@ -573,6 +573,74 @@ function fromPipeline<P1, P2>(
   p1: Pipeline<P1>,
   p2: Pipeline<P2>
 ): Pipeline<P1 | P2>;
+function fromPipeline<P1, P2, P3>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>
+): Pipeline<P1 | P2 | P3>;
+function fromPipeline<P1, P2, P3, P4>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>
+): Pipeline<P1 | P2 | P3 | P4>;
+function fromPipeline<P1, P2, P3, P4, P5>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>
+): Pipeline<P1 | P2 | P3 | P4 | P5>;
+function fromPipeline<P1, P2, P3, P4, P5, P6>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>,
+  p6: Pipeline<P6>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6>;
+function fromPipeline<P1, P2, P3, P4, P5, P6, P7>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>,
+  p6: Pipeline<P6>,
+  p7: Pipeline<P7>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7>;
+function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>,
+  p6: Pipeline<P6>,
+  p7: Pipeline<P7>,
+  p8: Pipeline<P8>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8>;
+function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8, P9>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>,
+  p6: Pipeline<P6>,
+  p7: Pipeline<P7>,
+  p8: Pipeline<P8>,
+  p9: Pipeline<P9>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9>;
+function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>,
+  p3: Pipeline<P3>,
+  p4: Pipeline<P4>,
+  p5: Pipeline<P5>,
+  p6: Pipeline<P6>,
+  p7: Pipeline<P7>,
+  p8: Pipeline<P8>,
+  p9: Pipeline<P9>,
+  p10: Pipeline<P10>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9 | P10>;
 function fromPipeline<T>(...sources: Pipeline<T>[]) {
   if (sources.length === 0) {
     return pipeline(sources[0].toGenerator());
