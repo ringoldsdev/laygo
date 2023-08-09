@@ -129,23 +129,6 @@ describe("producers", () => {
     expect(value).toStrictEqual(["1", "2", "3"]);
   });
 
-  it("should return value when using fromPipeline", async () => {
-    const pipeline = laygo.fromArray([1, 2, 3]);
-
-    const value = await laygo.fromPipeline(pipeline).result();
-
-    expect(value).toStrictEqual([1, 2, 3]);
-  });
-
-  it("should return value when using fromPipeline using multiple pipelines", async () => {
-    const pipeline1 = laygo.fromArray([1, 2]);
-    const pipeline2 = laygo.fromArray([3]);
-
-    const value = await laygo.fromPipeline(pipeline1, pipeline2).result();
-
-    expect(value).toStrictEqual([1, 2, 3]);
-  });
-
   it("should return value when using fromEventEmitter", async () => {
     const emitter = new EventEmitter();
 

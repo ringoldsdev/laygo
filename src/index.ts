@@ -411,6 +411,20 @@ async function branch<T, U>(
   return builtBranches;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function* merge(...sources: AsyncGenerator<any>[]): AsyncGenerator<any> {
+  while (sources.length > 0) {
+    const res = await Promise.all(sources.map((source) => source.next()));
+    for (const [index, { value, done }] of res.entries()) {
+      if (done) {
+        sources.splice(index, 1);
+      } else {
+        yield value;
+      }
+    }
+  }
+}
+
 type ReduceOptions = {
   ignoreUndefined?: boolean;
 };
@@ -554,6 +568,18 @@ type FromStreamLineReaderOptions = {
   skipEmptyLines?: boolean;
 };
 
+function fromPipeline<P1>(p1: Pipeline<P1>): Pipeline<P1>;
+function fromPipeline<P1, P2>(
+  p1: Pipeline<P1>,
+  p2: Pipeline<P2>
+): Pipeline<P1 | P2>;
+function fromPipeline<T>(...sources: Pipeline<T>[]) {
+  if (sources.length === 0) {
+    return pipeline(sources[0].toGenerator());
+  }
+  return pipeline(merge(...sources.map((source) => source.toGenerator())));
+}
+
 export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
   fromArray: <T>(...sources: T[][]) => pipeline(arrayGenerator(...sources)),
@@ -577,10 +603,7 @@ export const laygo = {
         options?.skipEmptyLines
       )
     ),
-  fromPipeline: <T>(...sources: Pipeline<T>[]) =>
-    pipeline(
-      generatorGenerator(...sources.map((source) => source.toGenerator()))
-    )
+  fromPipeline
 };
 
 export const Helpers = {
@@ -594,5 +617,3 @@ export const Helpers = {
   stringifyJson: <T>(pipeline: Pipeline<T>) =>
     pipeline.map((val) => JSON.stringify(val))
 };
-
-export type Laygo = typeof laygo;
