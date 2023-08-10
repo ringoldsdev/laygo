@@ -39,7 +39,10 @@ export type Pipeline<T> = {
     fn: (acc: U, val: T) => Result<U>,
     initialValue: U
   ) => Pipeline<U>;
-
+  groupBy<U>(
+    this: Pipeline<T extends Record<string | number | symbol, U> ? T : never>,
+    key: keyof T
+  );
   // You can specify type of this to restrict preceding values to be strings
   // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#specifying-the-type-of-this-for-functions
   split: (

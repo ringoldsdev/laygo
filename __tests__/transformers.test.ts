@@ -62,6 +62,16 @@ describe("transformers", () => {
       .result();
     expect(value).toStrictEqual(6);
   });
+  it("should group values by key", async () => {
+    const [value] = await laygo
+      .fromArray([{ key: "a" }, { key: "b" }, { key: "a" }])
+      .groupBy("key")
+      .result();
+    expect(value).toStrictEqual({
+      a: [{ key: "a" }, { key: "a" }],
+      b: [{ key: "b" }]
+    });
+  });
   it("should collect values", async () => {
     const value = await laygo.fromArray([1, 2, 3]).collect().result();
     expect(value).toStrictEqual([[1, 2, 3]]);

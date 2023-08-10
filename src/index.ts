@@ -22,8 +22,6 @@ import {
 // TODO: map, filter, etc should accept a second parameter that handles errors
 // second param should be an object where the key is an error type and the value is a function that handles the error
 
-// TODO: rename old reduce function to groupBy that accepts only objects with keys
-
 function generatorStream<T>(
   source: AsyncGenerator<T>,
   readableOptions: ReadableOptions = {}
@@ -356,6 +354,24 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     reduce<U>(fn: (acc: U, val: T) => Result<U>, initialValue: U) {
       generator = reduce(generator, fn, initialValue);
+      return this;
+    },
+    groupBy<U>(
+      this: Pipeline<T extends Record<string | number | symbol, U> ? T : never>,
+      key: keyof T
+    ) {
+      generator = reduce(
+        generator,
+        (acc, val) => {
+          const k = val[key];
+          if (!acc[k]) {
+            acc[k] = [];
+          }
+          acc[k].push(val);
+          return acc;
+        },
+        {}
+      );
       return this;
     },
     fork: () => {
