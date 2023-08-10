@@ -110,11 +110,7 @@ export function streamLineReader(sources: Readable[], skipEmptyLines = false) {
   return streamGenerator(...streams);
 }
 
-export async function* merge(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ...sources: AsyncGenerator<any>[]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): AsyncGenerator<any> {
+export async function* merge(...sources: AsyncGenerator[]): AsyncGenerator {
   while (sources.length > 0) {
     const res = await Promise.all(sources.map((source) => source.next()));
     for (const [index, { value, done }] of res.entries()) {
