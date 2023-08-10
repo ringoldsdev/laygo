@@ -11,9 +11,10 @@ import {
 import {
   arrayGenerator,
   eventEmitterGenerator,
+  fromArray,
+  fromGenerator,
   fromPipeline,
-  generatorGenerator,
-  promiseGenerator,
+  fromPromise,
   streamGenerator,
   streamLineReader
 } from "./producers";
@@ -408,14 +409,9 @@ type FromStreamLineReaderOptions = {
 
 export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
-  // TODO: fromArray should support different input types
-  fromArray: <T>(...sources: T[][]) => pipeline(arrayGenerator(...sources)),
-  // TODO: fromGenerator should support different input types
-  fromGenerator: <T>(...sources: AsyncGenerator<T>[]) =>
-    pipeline(generatorGenerator(...sources)),
-  // TODO: fromPromise should support different input types
-  fromPromise: <T>(...sources: Promise<T>[]) =>
-    pipeline(promiseGenerator(...sources)),
+  fromArray,
+  fromGenerator,
+  fromPromise,
   fromReadableStream: (...sources: Readable[]) =>
     pipeline<string>(streamGenerator(...sources)),
   fromEventEmitter: (sources: EventEmitter | EventEmitter[]) =>
