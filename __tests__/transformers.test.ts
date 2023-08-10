@@ -57,35 +57,10 @@ describe("transformers", () => {
   });
   it("should reduce values", async () => {
     const [value] = await laygo
-      .fromArray([
-        1,
-        2,
-        3,
-        { test: "test1", value: 1 },
-        { test: "test2", value: 2 }
-      ])
-      .reduce("test")
+      .fromArray([1, 2, 3])
+      .reduce((acc, v) => acc + v, 0)
       .result();
-    expect(value).toStrictEqual({
-      test1: [{ test: "test1", value: 1 }],
-      test2: [{ test: "test2", value: 2 }],
-      undefined: [1, 2, 3]
-    });
-  });
-  it("should reduce values and ignore those that don't have the key set", async () => {
-    const [value] = await laygo
-      .fromArray([
-        1,
-        2,
-        3,
-        { test: "test1", value: 1 },
-        { testt: "test2", value: 2 }
-      ])
-      .reduce("test", { ignoreUndefined: true })
-      .result();
-    expect(value).toStrictEqual({
-      test1: [{ test: "test1", value: 1 }]
-    });
+    expect(value).toStrictEqual(6);
   });
   it("should collect values", async () => {
     const value = await laygo.fromArray([1, 2, 3]).collect().result();

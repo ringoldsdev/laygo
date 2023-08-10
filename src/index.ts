@@ -1,7 +1,7 @@
 import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
 import events from "events";
 import { ForkableGenerator, createForkableGenerator } from "./fork";
-import { PipeDestination, Pipeline, ReduceOptions, Result } from "./types";
+import { PipeDestination, Pipeline, Result } from "./types";
 import {
   arrayGenerator,
   eventEmitterGenerator,
@@ -22,7 +22,7 @@ import {
 // TODO: map, filter, etc should accept a second parameter that handles errors
 // second param should be an object where the key is an error type and the value is a function that handles the error
 
-// TODO: improve reduce function to work closer to the array reduce function
+// TODO: rename old reduce function to groupBy that accepts only objects with keys
 
 function generatorStream<T>(
   source: AsyncGenerator<T>,
@@ -206,22 +206,14 @@ async function each<T, U>(
   }
 }
 
-async function* reduce<T>(
+async function* reduce<T, U>(
   source: AsyncGenerator<T>,
-  key: string | number | symbol,
-  ignoreUndefined = false
+  fn: (acc: U, val: T) => Result<U>,
+  initialValue: U
 ) {
-  const acc: Record<string, T[]> = {};
+  let acc = initialValue;
   for await (const item of source) {
-    const value = item[key];
-    if (ignoreUndefined && value === undefined) {
-      continue;
-    }
-    if (!(value in acc)) {
-      acc[value] = [item];
-      continue;
-    }
-    acc[value].push(item);
+    acc = await fn(acc, item);
   }
   yield acc;
 }
@@ -362,8 +354,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = unique(generator);
       return this;
     },
-    reduce: (key: string | number | symbol, options?: ReduceOptions) =>
-      pipeline(reduce(source, key, options?.ignoreUndefined)),
+    reduce<U>(fn: (acc: U, val: T) => Result<U>, initialValue: U) {
+      generator = reduce(generator, fn, initialValue);
+      return this;
+    },
     fork: () => {
       if (!forkedGenerator) {
         forkedGenerator = createForkableGenerator(generator);

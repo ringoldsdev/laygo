@@ -12,10 +12,6 @@ type ConditionalWriteable<T> = {
 
 export type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 
-export type ReduceOptions = {
-  ignoreUndefined?: boolean;
-};
-
 export type Pipeline<T> = {
   map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
@@ -39,10 +35,11 @@ export type Pipeline<T> = {
       ...PipeDestination<T>[]
     ]
   ) => Promise<void>;
-  reduce: (
-    key: string | number | symbol,
-    options?: ReduceOptions
-  ) => Pipeline<Record<string, T[]>>;
+  reduce: <U>(
+    fn: (acc: U, val: T) => Result<U>,
+    initialValue: U
+  ) => Pipeline<U>;
+
   // You can specify type of this to restrict preceding values to be strings
   // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#specifying-the-type-of-this-for-functions
   split: (
