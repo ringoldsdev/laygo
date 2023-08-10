@@ -116,3 +116,28 @@ describe("helpers", () => {
     expect(value).toStrictEqual(['{"test":"test"}', '{"test":"test2"}']);
   });
 });
+describe("transformer error handling", () => {
+  const throwError = () => {
+    throw new Error("err");
+  };
+  it("should map and handle errors", async () => {
+    const res = await laygo
+      .fromArray([1, 2, 3])
+      .map(throwError, {
+        default: () => 0
+      })
+      .result();
+
+    expect(res).toStrictEqual([0, 0, 0]);
+  });
+  it("should map and handle any error using the default setting", async () => {
+    const res = await laygo
+      .fromArray([1, 2, 3])
+      .map(throwError, {
+        default: () => 0
+      })
+      .result();
+
+    expect(res).toStrictEqual([0, 0, 0]);
+  });
+});

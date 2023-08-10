@@ -12,6 +12,7 @@ import {
   streamGenerator,
   streamLineReader
 } from "./producers";
+import { ErrorMap, buildHandleError } from "./errors";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
@@ -169,8 +170,22 @@ async function* chunk<T>(source: AsyncGenerator<T>, size: number) {
 
 async function* map<T, U>(
   source: Generator<T> | AsyncGenerator<T>,
-  fn: (val: T) => Result<U>
+  fn: (val: T) => Result<U>,
+  errorMap?: ErrorMap<T>
 ) {
+  if (errorMap) {
+    const handleError = buildHandleError(errorMap);
+    for await (const item of source) {
+      try {
+        yield await fn(item);
+      } catch (err) {
+        const res = await handleError(err, item);
+        if (res !== undefined) yield res;
+      }
+    }
+    return;
+  }
+
   for await (const item of source) {
     yield fn(item);
   }
@@ -293,8 +308,8 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = join(generator, delimiter);
       return this;
     },
-    map<U>(fn: (val: T) => Result<U>) {
-      generator = map(generator, fn);
+    map<U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T>) {
+      generator = map(generator, fn, errorMap);
       return this;
     },
     filter(fn: (val: T) => Result<boolean>) {

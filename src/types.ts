@@ -1,4 +1,5 @@
 import { Readable, ReadableOptions, Writable } from "stream";
+import { ErrorMap } from "./errors";
 
 export type Result<T> = T | Promise<T>;
 type Unarray<T> = T extends Array<infer U> ? U : T;
@@ -13,7 +14,7 @@ type ConditionalWriteable<T> = {
 export type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 
 export type Pipeline<T> = {
-  map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
+  map: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T>) => Pipeline<U>;
   filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
   take: (count: number) => Pipeline<T>;
   chunk: (size: number) => Pipeline<T[]>;
