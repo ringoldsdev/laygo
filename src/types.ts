@@ -51,7 +51,5 @@ export type Pipeline<T> = {
     limit?: number
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
-  branch: <U>(...branches: ExistingPipeline<T, U>[]) => Promise<U[]>;
-  // branch: <U>(...branches: ((src: Pipeline<T>) => U)[]) => Promise<U[]>;
   fork: () => Pipeline<T>;
 };

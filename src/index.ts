@@ -1,13 +1,7 @@
 import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
 import events from "events";
 import { ForkableGenerator, createForkableGenerator } from "./fork";
-import {
-  ExistingPipeline,
-  PipeDestination,
-  Pipeline,
-  ReduceOptions,
-  Result
-} from "./types";
+import { PipeDestination, Pipeline, ReduceOptions, Result } from "./types";
 import {
   arrayGenerator,
   eventEmitterGenerator,
@@ -28,7 +22,6 @@ import {
 // TODO: map, filter, etc should accept a second parameter that handles errors
 // second param should be an object where the key is an error type and the value is a function that handles the error
 
-// TODO: deprecate branch function - it's not really needed
 // TODO: improve reduce function to work closer to the array reduce function
 
 function generatorStream<T>(
@@ -294,24 +287,6 @@ async function* join(source: AsyncGenerator<string>, delimiter: string = "") {
   yield parts;
 }
 
-async function branch<T, U>(
-  source: AsyncGenerator<T>,
-  branches: ((src: Pipeline<T>) => U)[]
-) {
-  const events = new EventEmitter();
-
-  const builtBranches = branches.map((branch) =>
-    laygo.fromEventEmitter(events).apply(branch)
-  );
-
-  for await (const item of source) {
-    events.emit("data", item);
-  }
-  events.emit("end");
-
-  return builtBranches;
-}
-
 export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let generator: AsyncGenerator<any> = source;
@@ -389,11 +364,6 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     reduce: (key: string | number | symbol, options?: ReduceOptions) =>
       pipeline(reduce(source, key, options?.ignoreUndefined)),
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    branch: async (...branches: ExistingPipeline<T, any>[]) => {
-      return await branch(generator, branches);
-    },
     fork: () => {
       if (!forkedGenerator) {
         forkedGenerator = createForkableGenerator(generator);

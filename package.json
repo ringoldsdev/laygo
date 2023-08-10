@@ -28,6 +28,7 @@
   "name": "laygo",
   "version": "0.0.1",
   "main": "dist/index.js",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ringoldsdev/laygo.git"
