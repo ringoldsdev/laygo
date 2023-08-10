@@ -1,4 +1,6 @@
-import { Pipeline, laygo, Helpers } from "@src/index";
+import { laygo } from "@src/index";
+import { Helpers } from "@src/helpers";
+import { Pipeline } from "@src/types";
 
 describe("transformers", () => {
   it("should map values", async () => {

@@ -1,7 +1,22 @@
 import { EventEmitter, Readable, ReadableOptions, Writable } from "stream";
-import readline from "readline";
 import events from "events";
 import { ForkableGenerator, createForkableGenerator } from "./fork";
+import {
+  ExistingPipeline,
+  PipeDestination,
+  Pipeline,
+  ReduceOptions,
+  Result
+} from "./types";
+import {
+  arrayGenerator,
+  eventEmitterGenerator,
+  fromPipeline,
+  generatorGenerator,
+  promiseGenerator,
+  streamGenerator,
+  streamLineReader
+} from "./producers";
 
 // TODO: set up CICD and deploy to npm - CICD should test for all major node versions
 
@@ -14,83 +29,6 @@ import { ForkableGenerator, createForkableGenerator } from "./fork";
 
 // TODO: deprecate branch function - it's not really needed
 // TODO: improve reduce function to work closer to the array reduce function
-
-type Result<T> = T | Promise<T>;
-type Unarray<T> = T extends Array<infer U> ? U : T;
-
-async function* arrayGenerator<T>(...sources: T[][]) {
-  for (const source of sources) {
-    for (const item of source) {
-      yield item;
-    }
-  }
-}
-
-// TODO: deprecate in favour of merge function
-async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
-  for (const source of sources) {
-    for await (const item of source) {
-      yield item;
-    }
-  }
-}
-
-function mergeEventEmitters(...sources: EventEmitter[]) {
-  if (sources.length === 1) return sources[0];
-
-  const emitter = new events.EventEmitter();
-
-  let ended = 0;
-
-  for (const source of sources) {
-    source.on("data", (data) => emitter.emit("data", data));
-    // end only when all event emitters have emitted end
-    source.on("end", () => {
-      ended++;
-      if (ended === sources.length) emitter.emit("end");
-    });
-    source.on("error", (error) => emitter.emit("error", error));
-  }
-
-  return emitter;
-}
-
-function eventEmitterGenerator(
-  sources: EventEmitter[],
-  readableOptions: Omit<ReadableOptions, "objectMode"> = {}
-) {
-  const eventEmitter = mergeEventEmitters(...sources);
-
-  const readable = new Readable({
-    objectMode: true,
-    read() {},
-    ...readableOptions
-  });
-
-  eventEmitter.on("data", (data) => {
-    readable.push(data);
-  });
-  eventEmitter.on("end", () => {
-    readable.push(null);
-  });
-
-  return streamGenerator(readable);
-}
-
-async function* promiseGenerator<T>(...source: Promise<T>[]) {
-  for (const item of await Promise.all(source)) {
-    yield item;
-  }
-}
-
-async function* streamGenerator(...sources: Readable[]) {
-  for (const source of sources) {
-    for await (const chunk of source) {
-      yield chunk;
-    }
-    source.destroy();
-  }
-}
 
 function generatorStream<T>(
   source: AsyncGenerator<T>,
@@ -113,13 +51,6 @@ function generatorStream<T>(
     ...readableOptions
   });
 }
-
-type ConditionalWriteable<T> = {
-  destination: Writable;
-  condition: (data: T) => Result<boolean>;
-};
-
-type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 
 const processPipeDestinations = <T>(destinations: PipeDestination<T>[]) => {
   return (Array.isArray(destinations) ? destinations : [destinations]).map(
@@ -216,39 +147,6 @@ async function pipeFirst<T>(
   for (const destination of processedDestinations) {
     destination.end();
   }
-}
-
-function streamLineReader(sources: Readable[], skipEmptyLines = false) {
-  const streams: Readable[] = [];
-
-  for (const source of sources) {
-    const readable = new Readable({ objectMode: true, read: () => {} });
-
-    const rl = readline.createInterface({
-      input: source,
-      crlfDelay: Infinity
-    });
-
-    if (skipEmptyLines) {
-      rl.on("line", (line) => {
-        if (line.length > 0) {
-          readable.push(line);
-        }
-      });
-    } else {
-      rl.on("line", (line) => {
-        readable.push(line);
-      });
-    }
-
-    rl.on("close", () => {
-      readable.push(null);
-      source.destroy();
-    });
-
-    streams.push(readable);
-  }
-  return streamGenerator(...streams);
 }
 
 async function* flat<T>(source: AsyncGenerator<T>) {
@@ -413,71 +311,13 @@ async function branch<T, U>(
   return builtBranches;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function* merge(...sources: AsyncGenerator<any>[]): AsyncGenerator<any> {
-  while (sources.length > 0) {
-    const res = await Promise.all(sources.map((source) => source.next()));
-    for (const [index, { value, done }] of res.entries()) {
-      if (done) {
-        sources.splice(index, 1);
-      } else {
-        yield value;
-      }
-    }
-  }
-}
-
-type ReduceOptions = {
-  ignoreUndefined?: boolean;
-};
-
-type ExistingPipeline<T, U> = (source: Pipeline<T>) => U;
-
-export type Pipeline<T> = {
-  map: <U>(fn: (val: T) => Result<U>) => Pipeline<U>;
-  filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
-  take: (count: number) => Pipeline<T>;
-  chunk: (size: number) => Pipeline<T[]>;
-  flat: () => Pipeline<Unarray<T>>;
-  flatMap: <U>(fn: (val: T) => Result<U[]>) => Pipeline<U>;
-  collect: () => Pipeline<T[]>;
-  apply: <U>(fn: ExistingPipeline<T, U>) => U;
-  result: () => Promise<T[]>;
-  each: <U>(fn: (val: T) => Result<U>) => Result<void>;
-  tap: <U>(fn: (val: T) => Result<U>) => Pipeline<T>;
-  unique: () => Pipeline<T>;
-  toGenerator: () => AsyncGenerator<T>;
-  toStream: (readableOptions?: ReadableOptions) => Readable;
-  pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
-  pipeFirst: (
-    ...destinations: [
-      PipeDestination<T>,
-      PipeDestination<T>,
-      ...PipeDestination<T>[]
-    ]
-  ) => Promise<void>;
-  reduce: (
-    key: string | number | symbol,
-    options?: ReduceOptions
-  ) => Pipeline<Record<string, T[]>>;
-  // You can specify type of this to restrict preceding values to be strings
-  // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#specifying-the-type-of-this-for-functions
-  split: (
-    this: Pipeline<string>,
-    separator: string | RegExp,
-    limit?: number
-  ) => Pipeline<string>;
-  join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
-  branch: <U>(...branches: ExistingPipeline<T, U>[]) => Promise<U[]>;
-  // branch: <U>(...branches: ((src: Pipeline<T>) => U)[]) => Promise<U[]>;
-  fork: () => Pipeline<T>;
-};
-
-function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
+export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let generator: AsyncGenerator<any> = source;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let forkedGenerator: ForkableGenerator<any>;
+  type NewType = PipeDestination<T>;
+
   return {
     split(this: Pipeline<string>, separator: string | RegExp, limit?: number) {
       generator = split(generator, separator, limit);
@@ -538,11 +378,7 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       return pipe(generator, destinations);
     },
     pipeFirst(
-      ...destinations: [
-        PipeDestination<T>,
-        PipeDestination<T>,
-        ...PipeDestination<T>[]
-      ]
+      ...destinations: [NewType, PipeDestination<T>, ...PipeDestination<T>[]]
     ) {
       return pipeFirst(generator, destinations);
     },
@@ -569,86 +405,6 @@ function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
 type FromStreamLineReaderOptions = {
   skipEmptyLines?: boolean;
 };
-
-function fromPipeline<P1>(p1: Pipeline<P1>): Pipeline<P1>;
-function fromPipeline<P1, P2>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>
-): Pipeline<P1 | P2>;
-function fromPipeline<P1, P2, P3>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>
-): Pipeline<P1 | P2 | P3>;
-function fromPipeline<P1, P2, P3, P4>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>
-): Pipeline<P1 | P2 | P3 | P4>;
-function fromPipeline<P1, P2, P3, P4, P5>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>
-): Pipeline<P1 | P2 | P3 | P4 | P5>;
-function fromPipeline<P1, P2, P3, P4, P5, P6>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>,
-  p6: Pipeline<P6>
-): Pipeline<P1 | P2 | P3 | P4 | P5 | P6>;
-function fromPipeline<P1, P2, P3, P4, P5, P6, P7>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>,
-  p6: Pipeline<P6>,
-  p7: Pipeline<P7>
-): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7>;
-function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>,
-  p6: Pipeline<P6>,
-  p7: Pipeline<P7>,
-  p8: Pipeline<P8>
-): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8>;
-function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8, P9>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>,
-  p6: Pipeline<P6>,
-  p7: Pipeline<P7>,
-  p8: Pipeline<P8>,
-  p9: Pipeline<P9>
-): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9>;
-function fromPipeline<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10>(
-  p1: Pipeline<P1>,
-  p2: Pipeline<P2>,
-  p3: Pipeline<P3>,
-  p4: Pipeline<P4>,
-  p5: Pipeline<P5>,
-  p6: Pipeline<P6>,
-  p7: Pipeline<P7>,
-  p8: Pipeline<P8>,
-  p9: Pipeline<P9>,
-  p10: Pipeline<P10>
-): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9 | P10>;
-function fromPipeline<T>(...sources: Pipeline<T>[]) {
-  if (sources.length === 0) {
-    return pipeline(sources[0].toGenerator());
-  }
-  return pipeline(merge(...sources.map((source) => source.toGenerator())));
-}
 
 export const laygo = {
   from: <T>(source: T) => pipeline(arrayGenerator([source])),
@@ -677,16 +433,4 @@ export const laygo = {
       )
     ),
   fromPipeline
-};
-
-export const Helpers = {
-  trim: (pipeline: Pipeline<string>) => pipeline.map((val) => val.trim()),
-  replace:
-    (searchValue: string | RegExp, replaceValue: string) =>
-    (pipeline: Pipeline<string>) =>
-      pipeline.map((val) => val.replace(searchValue, replaceValue)),
-  parseJson: (pipeline: Pipeline<string>) =>
-    pipeline.map((val) => JSON.parse(val)),
-  stringifyJson: <T>(pipeline: Pipeline<T>) =>
-    pipeline.map((val) => JSON.stringify(val))
 };
