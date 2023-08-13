@@ -1,5 +1,5 @@
-import { laygo } from "@src/index";
-import { EventEmitter, PassThrough, Writable } from "stream";
+import * as laygo from "@src/index";
+import { EventEmitter, Writable } from "stream";
 
 describe("consumers", () => {
   it("should return value when using result", async () => {
@@ -175,5 +175,22 @@ describe("consumers", () => {
 
     expect(odd).toStrictEqual([1, 3]);
     expect(even).toStrictEqual([2]);
+  });
+});
+describe("error handling", () => {
+  it("should handle each error", async () => {
+    const res: number[] = [];
+    await laygo.fromArray([1, 2, 3]).each(
+      (v) => {
+        if (v === 2) {
+          throw new Error("I hate 2");
+        }
+        res.push(v);
+      },
+      {
+        Error: () => {}
+      }
+    );
+    expect(res).toStrictEqual([1, 3]);
   });
 });

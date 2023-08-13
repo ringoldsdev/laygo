@@ -1,20 +1,11 @@
 import { EventEmitter, Readable, ReadableOptions } from "stream";
 import readline from "readline";
 import { Pipeline } from "./types";
-import { pipeline } from ".";
+import { pipeline } from "./pipeline";
 
 export async function* arrayGenerator<T>(...sources: T[][]) {
   for (const source of sources) {
     for (const item of source) {
-      yield item;
-    }
-  }
-}
-
-// TODO: deprecate in favour of merge function
-export async function* generatorGenerator<T>(...sources: AsyncGenerator<T>[]) {
-  for (const source of sources) {
-    for await (const item of source) {
       yield item;
     }
   }
@@ -77,10 +68,13 @@ export function eventEmitterGenerator(
   return streamGenerator(readable);
 }
 
-export function streamLineReader(sources: Readable[], skipEmptyLines = false) {
+export function streamLineReader(
+  sources: Readable | Readable[],
+  skipEmptyLines = false
+) {
   const streams: Readable[] = [];
 
-  for (const source of sources) {
+  for (const source of Array.isArray(sources) ? sources : [sources]) {
     const readable = new Readable({ objectMode: true, read: () => {} });
 
     const rl = readline.createInterface({
@@ -438,4 +432,101 @@ export function fromPromise<T>(...sources: Promise<T>[]) {
     return pipeline(promiseGenerator(sources[0]));
   }
   return pipeline(promiseGenerator(...sources));
+}
+
+export function from<P1>(p1: P1): Pipeline<P1>;
+export function from<P1, P2>(p1: P1, p2: P2): Pipeline<P1 | P2>;
+export function from<P1, P2, P3>(
+  p1: P1,
+  p2: P2,
+  p3: P3
+): Pipeline<P1 | P2 | P3>;
+export function from<P1, P2, P3, P4>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4
+): Pipeline<P1 | P2 | P3 | P4>;
+export function from<P1, P2, P3, P4, P5>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5
+): Pipeline<P1 | P2 | P3 | P4 | P5>;
+export function from<P1, P2, P3, P4, P5, P6>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5,
+  p6: P6
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6>;
+export function from<P1, P2, P3, P4, P5, P6, P7>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5,
+  p6: P6,
+  p7: P7
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7>;
+export function from<P1, P2, P3, P4, P5, P6, P7, P8>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5,
+  p6: P6,
+  p7: P7,
+  p8: P8
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8>;
+export function from<P1, P2, P3, P4, P5, P6, P7, P8, P9>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5,
+  p6: P6,
+  p7: P7,
+  p8: P8,
+  p9: P9
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9>;
+export function from<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10>(
+  p1: P1,
+  p2: P2,
+  p3: P3,
+  p4: P4,
+  p5: P5,
+  p6: P6,
+  p7: P7,
+  p8: P8,
+  p9: P9,
+  p10: P10
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9 | P10>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function from(...sources: any[]) {
+  return pipeline(arrayGenerator(sources));
+}
+
+export function fromReadableStream(...sources: Readable[]) {
+  return pipeline<string>(streamGenerator(...sources));
+}
+
+export function fromEventEmitter(sources: EventEmitter | EventEmitter[]) {
+  return pipeline(
+    eventEmitterGenerator(Array.isArray(sources) ? sources : [sources])
+  );
+}
+
+type FromStreamLineReaderOptions = {
+  skipEmptyLines?: boolean;
+};
+
+export function fromStreamLineReader(
+  sources: Readable[] | Readable,
+  options?: FromStreamLineReaderOptions
+) {
+  return pipeline<string>(streamLineReader(sources, options?.skipEmptyLines));
 }

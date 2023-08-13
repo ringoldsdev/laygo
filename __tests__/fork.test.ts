@@ -1,4 +1,4 @@
-import { laygo } from "@src/index";
+import * as laygo from "@src/index";
 import { createForkableGenerator } from "@src/fork";
 
 describe("forking", () => {

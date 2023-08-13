@@ -1,10 +1,14 @@
-import { laygo } from "@src/index";
+import * as laygo from "@src/index";
 import { EventEmitter, Readable } from "stream";
 
 describe("producers", () => {
   it("should return value when using from", async () => {
     const value = await laygo.from(1).result();
     expect(value).toStrictEqual([1]);
+  });
+  it("should return value when using from and different types", async () => {
+    const value = await laygo.from(1, "a").result();
+    expect(value).toStrictEqual([1, "a"]);
   });
   it("should return value when using fromArray", async () => {
     const value = await laygo.fromArray([1, 2, 3]).result();

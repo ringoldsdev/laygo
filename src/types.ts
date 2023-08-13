@@ -14,8 +14,11 @@ type ConditionalWriteable<T> = {
 export type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 
 export type Pipeline<T> = {
-  map: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T>) => Pipeline<U>;
-  filter: (fn: (val: T) => Result<boolean>) => Pipeline<T>;
+  map: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<U>;
+  filter: (
+    fn: (val: T) => Result<boolean>,
+    errorMap?: ErrorMap<T, T>
+  ) => Pipeline<T>;
   take: (count: number) => Pipeline<T>;
   chunk: (size: number) => Pipeline<T[]>;
   flat: () => Pipeline<Unarray<T>>;
@@ -23,22 +26,20 @@ export type Pipeline<T> = {
   collect: () => Pipeline<T[]>;
   apply: <U>(fn: ExistingPipeline<T, U>) => U;
   result: () => Promise<T[]>;
-  each: <U>(fn: (val: T) => Result<U>) => Result<void>;
-  tap: <U>(fn: (val: T) => Result<U>) => Pipeline<T>;
+  each: <U>(
+    fn: (val: T) => Result<U>,
+    errorMap?: ErrorMap<T, U>
+  ) => Result<void>;
+  tap: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<T>;
   unique: () => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
-  pipeFirst: (
-    ...destinations: [
-      PipeDestination<T>,
-      PipeDestination<T>,
-      ...PipeDestination<T>[]
-    ]
-  ) => Promise<void>;
+  pipeFirst: (...destinations: PipeDestination<T>[]) => Promise<void>;
   reduce: <U>(
     fn: (acc: U, val: T) => Result<U>,
-    initialValue: U
+    initialValue: U,
+    errorMap?: ErrorMap<T, U>
   ) => Pipeline<U>;
   groupBy<U>(
     this: Pipeline<T extends Record<string | number | symbol, U> ? T : never>,
@@ -53,4 +54,8 @@ export type Pipeline<T> = {
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
   fork: () => Pipeline<T>;
+  validate: (
+    fn: (data: T) => Result<boolean>,
+    errFn: (data: T) => Result<void>
+  ) => Pipeline<T>;
 };

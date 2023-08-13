@@ -1,4 +1,4 @@
-import { laygo } from "@src/index";
+import * as laygo from "@src/index";
 import { Helpers } from "@src/helpers";
 import { Pipeline } from "@src/types";
 
@@ -116,6 +116,7 @@ describe("helpers", () => {
     expect(value).toStrictEqual(['{"test":"test"}', '{"test":"test2"}']);
   });
 });
+
 describe("transformer error handling", () => {
   const throwError = () => {
     throw new Error("err");
@@ -139,5 +140,19 @@ describe("transformer error handling", () => {
       .result();
 
     expect(res).toStrictEqual([0, 0, 0]);
+  });
+  it("should validate data", async () => {
+    const fn = () =>
+      laygo
+        .fromArray([1, 2, 3])
+        .validate(
+          (v) => v > 2,
+          (v) => {
+            throw new Error(`${v} is less than or equal to 2`);
+          }
+        )
+        .result();
+
+    expect(fn).rejects.toStrictEqual(new Error("1 is less than or equal to 2"));
   });
 });
