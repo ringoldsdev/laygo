@@ -39,6 +39,17 @@ describe("producers", () => {
     const [value] = await laygo.fromPromise(promise).result();
     expect(value).toStrictEqual([1, 2, 3]);
   });
+  it("should return value when using fromEagerPromise with a promise object", async () => {
+    const promises = [
+      new Promise((resolve) => setTimeout(() => resolve(1), 5)),
+      new Promise((resolve) => setTimeout(() => resolve(2), 10)),
+      new Promise((resolve) => setTimeout(() => resolve(3), 15))
+    ];
+    const value = await laygo
+      .fromEagerPromise(promises[0], promises[1], promises[2])
+      .result();
+    expect(value).toStrictEqual([1, 2, 3]);
+  });
   it("should return value when using fromGenerator", async () => {
     const fn = async function* () {
       yield 1;

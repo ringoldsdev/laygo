@@ -11,9 +11,24 @@ export async function* arrayGenerator<T>(...sources: T[][]) {
   }
 }
 
-export async function* promiseGenerator<T>(...source: Promise<T>[]) {
-  for (const item of await Promise.all(source)) {
+export async function* promiseGenerator<T>(...sources: Promise<T>[]) {
+  for (const item of await Promise.all(sources)) {
     yield item;
+  }
+}
+
+export async function* eagerPromiseGenerator<T>(...sources: Promise<T>[]) {
+  const results: Array<Promise<T>> = sources.map((p) =>
+    p.then((result) => result)
+  );
+
+  while (results.length > 0) {
+    const index = await Promise.race(
+      results.map((promise, i) => promise.then(() => i))
+    );
+    yield await results[index];
+    results.splice(index, 1);
+    console.log(results);
   }
 }
 
@@ -432,6 +447,86 @@ export function fromPromise<T>(...sources: Promise<T>[]) {
     return pipeline(promiseGenerator(sources[0]));
   }
   return pipeline(promiseGenerator(...sources));
+}
+
+export function fromEagerPromise<P1>(p1: Promise<P1>): Pipeline<P1>;
+export function fromEagerPromise<P1, P2>(
+  p1: Promise<P1>,
+  p2: Promise<P2>
+): Pipeline<P1 | P2>;
+export function fromEagerPromise<P1, P2, P3>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>
+): Pipeline<P1 | P2 | P3>;
+export function fromEagerPromise<P1, P2, P3, P4>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>
+): Pipeline<P1 | P2 | P3 | P4>;
+export function fromEagerPromise<P1, P2, P3, P4, P5>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>
+): Pipeline<P1 | P2 | P3 | P4 | P5>;
+export function fromEagerPromise<P1, P2, P3, P4, P5, P6>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>,
+  p6: Promise<P6>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6>;
+export function fromEagerPromise<P1, P2, P3, P4, P5, P6, P7>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>,
+  p6: Promise<P6>,
+  p7: Promise<P7>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7>;
+export function fromEagerPromise<P1, P2, P3, P4, P5, P6, P7, P8>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>,
+  p6: Promise<P6>,
+  p7: Promise<P7>,
+  p8: Promise<P8>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8>;
+export function fromEagerPromise<P1, P2, P3, P4, P5, P6, P7, P8, P9>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>,
+  p6: Promise<P6>,
+  p7: Promise<P7>,
+  p8: Promise<P8>,
+  p9: Promise<P9>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9>;
+export function fromEagerPromise<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10>(
+  p1: Promise<P1>,
+  p2: Promise<P2>,
+  p3: Promise<P3>,
+  p4: Promise<P4>,
+  p5: Promise<P5>,
+  p6: Promise<P6>,
+  p7: Promise<P7>,
+  p8: Promise<P8>,
+  p9: Promise<P9>,
+  p10: Promise<P10>
+): Pipeline<P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9 | P10>;
+export function fromEagerPromise<T>(...sources: Promise<T>[]) {
+  if (sources.length === 0) {
+    return pipeline(eagerPromiseGenerator(sources[0]));
+  }
+  return pipeline(eagerPromiseGenerator(...sources));
 }
 
 export function from<P1>(p1: P1): Pipeline<P1>;
