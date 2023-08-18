@@ -88,7 +88,7 @@ export async function* reduce<T, U>(
   source: AsyncGenerator<T>,
   fn: (acc: U, val: T) => Result<U>,
   initialValue: U,
-  errorMap?: ErrorMap<T, U>
+  errorMap?: ErrorMap<T, T>
 ) {
   let acc = initialValue;
   if (errorMap) {
@@ -97,8 +97,7 @@ export async function* reduce<T, U>(
       try {
         acc = await fn(acc, item);
       } catch (err) {
-        const res = await handleError(err, item);
-        if (res !== undefined) acc = res;
+        await handleError(err, item);
       }
     }
   } else {

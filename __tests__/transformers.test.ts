@@ -73,11 +73,11 @@ describe("transformers", () => {
   it("should group values by key", async () => {
     const [value] = await laygo
       .fromArray([{ key: "a" }, { key: "b" }, { key: "a" }])
-      .groupBy("key")
+      .groupBy((val) => (val.key === "a" ? "good" : "bad"))
       .result();
     expect(value).toStrictEqual({
-      a: [{ key: "a" }, { key: "a" }],
-      b: [{ key: "b" }]
+      good: [{ key: "a" }, { key: "a" }],
+      bad: [{ key: "b" }]
     });
   });
   it("should collect values", async () => {
@@ -162,5 +162,44 @@ describe("transformer error handling", () => {
         .result();
 
     expect(fn).rejects.toStrictEqual(new Error("1 is less than or equal to 2"));
+  });
+  it("should reduce and catch errors", async () => {
+    const fn = () =>
+      laygo
+        .fromArray([1, 2, 3])
+        .reduce(
+          (acc, val) => {
+            if (val === 2) throw new Error("Bad number");
+            return acc + val;
+          },
+          0,
+          {
+            Error: (err, data) => {
+              throw new Error("Intercepted number " + data);
+            }
+          }
+        )
+        .result();
+
+    expect(fn).rejects.toStrictEqual(new Error("Intercepted number 2"));
+  });
+  it("should group and catch errors", async () => {
+    const fn = () =>
+      laygo
+        .fromArray([1, 2, 3])
+        .groupBy(
+          (num) => {
+            if (num === 2) throw new Error("Bad number");
+            return num;
+          },
+          {
+            Error: (err, data) => {
+              throw new Error(err.message + " " + data);
+            }
+          }
+        )
+        .result();
+
+    expect(fn).rejects.toStrictEqual(new Error("Bad number 2"));
   });
 });

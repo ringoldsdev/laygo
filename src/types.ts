@@ -40,12 +40,12 @@ export type Pipeline<T> = {
   reduce: <U>(
     fn: (acc: U, val: T) => Result<U>,
     initialValue: U,
-    errorMap?: ErrorMap<T, U>
+    errorMap?: ErrorMap<T, T>
   ) => Pipeline<U>;
-  groupBy<U>(
-    this: Pipeline<T extends Record<string | number | symbol, U> ? T : never>,
-    key: keyof T
-  );
+  groupBy: <U extends string | number | symbol>(
+    fn: (data: T) => U,
+    errorMap?: ErrorMap<T, T>
+  ) => Pipeline<Record<U, T[]>>;
   // You can specify type of this to restrict preceding values to be strings
   // https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html#specifying-the-type-of-this-for-functions
   split: (

@@ -46,7 +46,7 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     reduce<U>(
       fn: (acc: U, val: T) => Result<U>,
       initialValue: U,
-      errorMap?: ErrorMap<T, U>
+      errorMap?: ErrorMap<T, T>
     ) {
       generator = reduce(generator, fn, initialValue, errorMap);
       return this;
@@ -103,21 +103,20 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = uniqueBy(generator, fn);
       return this;
     },
-    groupBy<U>(
-      this: Pipeline<T extends Record<string | number | symbol, U> ? T : never>,
-      key: keyof T
-    ) {
+    groupBy<U extends string | number | symbol>(
+      fn: (data: T) => Result<U>,
+      errorMap?: ErrorMap<T, T>
+    ): Pipeline<Record<U, T[]>> {
       generator = reduce(
         generator,
-        (acc, val) => {
-          const k = val[key];
-          if (!acc[k]) {
-            acc[k] = [];
-          }
-          acc[k].push(val);
+        async (acc, val) => {
+          const res = await fn(val);
+          if (!(res in acc)) acc[res] = [];
+          acc[res].push(val);
           return acc;
         },
-        {}
+        {} as Record<string | number | symbol, T[]>,
+        errorMap
       );
       return this;
     },
