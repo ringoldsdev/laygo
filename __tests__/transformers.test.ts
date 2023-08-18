@@ -55,6 +55,14 @@ describe("transformers", () => {
     const value = await laygo.fromArray([1, 2, 3, 2, 1]).unique().result();
     expect(value).toStrictEqual([1, 2, 3]);
   });
+  it("should output unique values by key", async () => {
+    const value = await laygo
+      .fromArray([{ id: 1 }, { id: 1 }, { id: 2 }])
+      .uniqueBy((val) => val.id)
+      .result();
+    expect(value).toStrictEqual([{ id: 1 }, { id: 2 }]);
+  });
+
   it("should reduce values", async () => {
     const [value] = await laygo
       .fromArray([1, 2, 3])

@@ -11,7 +11,5 @@ export * from "./producers";
 // Once consume function is called, user can call that function multiple times and for each a new consumer is created
 // It allows executing all consumers in parallel
 
-// TODO: add a wrapper type
 // TODO: refactor code so that transformers, wrappers, and consumers don't know generators are being used
 // TODO: add a module function that works similarly to apply, but instead creates a new pipeline with the ability to wrap it and track errors
-// TODO: make laygo a thenable object so that all consumers can be run at the same time

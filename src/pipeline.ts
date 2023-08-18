@@ -16,6 +16,7 @@ import {
   take,
   tap,
   unique,
+  uniqueBy,
   validate
 } from "./transformers";
 
@@ -40,6 +41,14 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     filter(fn: (val: T) => Result<boolean>, errorMap?: ErrorMap<T, T>) {
       generator = filter(generator, fn, errorMap);
+      return this;
+    },
+    reduce<U>(
+      fn: (acc: U, val: T) => Result<U>,
+      initialValue: U,
+      errorMap?: ErrorMap<T, U>
+    ) {
+      generator = reduce(generator, fn, initialValue, errorMap);
       return this;
     },
     chunk(size: number) {
@@ -90,12 +99,8 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = unique(generator);
       return this;
     },
-    reduce<U>(
-      fn: (acc: U, val: T) => Result<U>,
-      initialValue: U,
-      errorMap?: ErrorMap<T, U>
-    ) {
-      generator = reduce(generator, fn, initialValue, errorMap);
+    uniqueBy<U>(fn: (data: T) => U) {
+      generator = uniqueBy(generator, fn);
       return this;
     },
     groupBy<U>(

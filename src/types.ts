@@ -32,6 +32,7 @@ export type Pipeline<T> = {
   ) => Result<void>;
   tap: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<T>;
   unique: () => Pipeline<T>;
+  uniqueBy: <U>(fn: (data: T) => U) => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;
   toStream: (readableOptions?: ReadableOptions) => Readable;
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;

@@ -162,6 +162,20 @@ export async function* unique<T>(source: AsyncGenerator<T>) {
   }
 }
 
+export async function* uniqueBy<T, U>(
+  source: AsyncGenerator<T>,
+  fn: (data: T) => U
+) {
+  const res = new Set<U>();
+  for await (const item of source) {
+    const val = fn(item);
+    if (!res.has(val)) {
+      res.add(val);
+      yield item;
+    }
+  }
+}
+
 export async function* split(
   source: AsyncGenerator<string>,
   separator: string | RegExp,
