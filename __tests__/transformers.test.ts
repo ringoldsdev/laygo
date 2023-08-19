@@ -70,6 +70,20 @@ describe("transformers", () => {
       .result();
     expect(value).toStrictEqual(6);
   });
+
+  it("should reduce values and abort on condition", async () => {
+    const [value] = await laygo
+      .fromArray([1, 2, 3])
+      .reduce((acc, v, done) => {
+        if (acc >= 3) {
+          return done(acc);
+        }
+        return acc + v;
+      }, 0)
+      .result();
+    expect(value).toStrictEqual(3);
+  });
+
   it("should group values by key", async () => {
     const [value] = await laygo
       .fromArray([{ key: "a" }, { key: "b" }, { key: "a" }])

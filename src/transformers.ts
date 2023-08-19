@@ -86,23 +86,40 @@ export async function result<T>(source: AsyncGenerator<T>) {
 
 export async function* reduce<T, U>(
   source: AsyncGenerator<T>,
-  fn: (acc: U, val: T) => Result<U>,
+  fn: (acc: U, val: T, done: (val: U) => U) => Result<U>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>
 ) {
   let acc = initialValue;
+  let aborted = false;
+
   if (errorMap) {
     const handleError = buildHandleError(errorMap);
     for await (const item of source) {
       try {
-        acc = await fn(acc, item);
+        const res = await fn(acc, item, (val) => {
+          aborted = true;
+          return val;
+        });
+        acc = res as U;
+        if (aborted) {
+          break;
+        }
       } catch (err) {
         await handleError(err, item);
       }
     }
   } else {
     for await (const item of source) {
-      acc = await fn(acc, item);
+      const res = await fn(acc, item, (val) => {
+        aborted = true;
+        return val;
+      });
+
+      acc = res as U;
+      if (aborted) {
+        break;
+      }
     }
   }
   yield acc;
