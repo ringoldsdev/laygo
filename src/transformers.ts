@@ -132,14 +132,6 @@ export async function* tap<T, U>(
   }
 }
 
-export async function* collect<T>(source: AsyncGenerator<T>) {
-  const res: T[] = [];
-  for await (const item of source) {
-    res.push(item);
-  }
-  yield res;
-}
-
 export async function* take<T>(source: AsyncGenerator<T>, count: number) {
   const res: T[] = [];
   for await (const item of source) {

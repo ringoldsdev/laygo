@@ -5,7 +5,6 @@ import { ErrorMap } from "./errors";
 import { pipe, pipeFirst, toStream, each } from "./consumers";
 import {
   chunk,
-  collect,
   filter,
   flat,
   join,
@@ -68,7 +67,7 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       return this;
     },
     collect() {
-      generator = collect(generator);
+      generator = reduce(generator, async (acc, val) => acc.concat(val), []);
       return this;
     },
     apply<U>(fn: (src: Pipeline<T>) => U) {

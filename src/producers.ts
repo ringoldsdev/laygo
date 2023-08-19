@@ -28,7 +28,6 @@ export async function* eagerPromiseGenerator<T>(...sources: Promise<T>[]) {
     );
     yield await results[index];
     results.splice(index, 1);
-    console.log(results);
   }
 }
 
