@@ -10,12 +10,26 @@ describe("transformers", () => {
       .result();
     expect(value).toStrictEqual([2, 4, 6]);
   });
+  it("should map value indexes", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3])
+      .map((v, index) => index)
+      .result();
+    expect(value).toStrictEqual([0, 1, 2]);
+  });
   it("should filter values", async () => {
     const value = await laygo
       .fromArray([1, 2, 3])
       .filter((v) => v % 2 === 0)
       .result();
     expect(value).toStrictEqual([2]);
+  });
+  it("should filter every other value", async () => {
+    const value = await laygo
+      .fromArray(["a", "b", "c"])
+      .filter((_, index) => (index + 1) % 2 !== 0)
+      .result();
+    expect(value).toStrictEqual(["a", "c"]);
   });
   it("should flatten values", async () => {
     const value = await laygo
@@ -74,7 +88,7 @@ describe("transformers", () => {
   it("should reduce values and abort on condition", async () => {
     const [value] = await laygo
       .fromArray([1, 2, 3])
-      .reduce((acc, v, done) => {
+      .reduce((acc, v, _index, done) => {
         if (acc >= 3) {
           return done(acc);
         }

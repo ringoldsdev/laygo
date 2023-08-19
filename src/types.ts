@@ -14,9 +14,12 @@ type ConditionalWriteable<T> = {
 export type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 
 export type Pipeline<T> = {
-  map: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<U>;
+  map: <U>(
+    fn: (val: T, index: number) => Result<U>,
+    errorMap?: ErrorMap<T, U>
+  ) => Pipeline<U>;
   filter: (
-    fn: (val: T) => Result<boolean>,
+    fn: (val: T, index: number) => Result<boolean>,
     errorMap?: ErrorMap<T, T>
   ) => Pipeline<T>;
   take: (count: number) => Pipeline<T>;
@@ -38,7 +41,7 @@ export type Pipeline<T> = {
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
   pipeFirst: (...destinations: PipeDestination<T>[]) => Promise<void>;
   reduce: <U>(
-    fn: (acc: U, val: T, done: (val: U) => U) => Result<U>,
+    fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
     initialValue: U,
     errorMap?: ErrorMap<T, T>
   ) => Pipeline<U>;

@@ -34,16 +34,22 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = join(generator, delimiter);
       return this;
     },
-    map<U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) {
+    map<U>(
+      fn: (val: T, index: number) => Result<U>,
+      errorMap?: ErrorMap<T, U>
+    ) {
       generator = map(generator, fn, errorMap);
       return this;
     },
-    filter(fn: (val: T) => Result<boolean>, errorMap?: ErrorMap<T, T>) {
+    filter(
+      fn: (val: T, index: number) => Result<boolean>,
+      errorMap?: ErrorMap<T, T>
+    ) {
       generator = filter(generator, fn, errorMap);
       return this;
     },
     reduce<U>(
-      fn: (acc: U, val: T, done: (val: U) => U) => Result<U>,
+      fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
       initialValue: U,
       errorMap?: ErrorMap<T, T>
     ) {

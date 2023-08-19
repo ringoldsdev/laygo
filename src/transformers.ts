@@ -29,14 +29,16 @@ export async function* chunk<T>(source: AsyncGenerator<T>, size: number) {
 
 export async function* map<T, U>(
   source: Generator<T> | AsyncGenerator<T>,
-  fn: (val: T) => Result<U>,
+  fn: (val: T, index: number) => Result<U>,
   errorMap?: ErrorMap<T, U>
 ) {
+  let i = 0;
   if (errorMap) {
     const handleError = buildHandleError(errorMap);
     for await (const item of source) {
       try {
-        yield await fn(item);
+        yield await fn(item, i);
+        i++;
       } catch (err) {
         const res = await handleError(err, item);
         if (res !== undefined) yield res;
@@ -46,22 +48,25 @@ export async function* map<T, U>(
   }
 
   for await (const item of source) {
-    yield fn(item);
+    yield fn(item, i);
+    i++;
   }
 }
 
 export async function* filter<T>(
   source: Generator<T> | AsyncGenerator<T>,
-  fn: (val: T) => Result<boolean>,
+  fn: (val: T, index: number) => Result<boolean>,
   errorMap?: ErrorMap<T, T>
 ) {
+  let i = 0;
   if (errorMap) {
     const handleError = buildHandleError(errorMap);
     for await (const item of source) {
       try {
-        if (await fn(item)) {
+        if (await fn(item, i)) {
           yield item;
         }
+        i++;
       } catch (err) {
         const res = await handleError(err, item);
         if (res !== undefined) yield res;
@@ -70,9 +75,10 @@ export async function* filter<T>(
     return;
   }
   for await (const item of source) {
-    if (await fn(item)) {
+    if (await fn(item, i)) {
       yield item;
     }
+    i++;
   }
 }
 
@@ -86,18 +92,18 @@ export async function result<T>(source: AsyncGenerator<T>) {
 
 export async function* reduce<T, U>(
   source: AsyncGenerator<T>,
-  fn: (acc: U, val: T, done: (val: U) => U) => Result<U>,
+  fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>
 ) {
   let acc = initialValue;
   let aborted = false;
-
+  let i = 0;
   if (errorMap) {
     const handleError = buildHandleError(errorMap);
     for await (const item of source) {
       try {
-        const res = await fn(acc, item, (val) => {
+        const res = await fn(acc, item, i, (val) => {
           aborted = true;
           return val;
         });
@@ -105,13 +111,14 @@ export async function* reduce<T, U>(
         if (aborted) {
           break;
         }
+        i++;
       } catch (err) {
         await handleError(err, item);
       }
     }
   } else {
     for await (const item of source) {
-      const res = await fn(acc, item, (val) => {
+      const res = await fn(acc, item, i, (val) => {
         aborted = true;
         return val;
       });
@@ -120,6 +127,7 @@ export async function* reduce<T, U>(
       if (aborted) {
         break;
       }
+      i++;
     }
   }
   yield acc;
