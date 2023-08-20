@@ -1,4 +1,8 @@
-import { ErrorMap, buildHandleError } from "./errors";
+import {
+  ErrorMap,
+  buildHandleError,
+  buildPassthroughHandleError
+} from "./errors";
 import { Result } from "./types";
 
 export async function* flat<T>(source: AsyncGenerator<T>) {
@@ -108,46 +112,12 @@ export async function* reduce<T, U>(
   let reset: U | undefined;
   let isEmittingManually = false;
   let i = 0;
-  if (errorMap) {
-    const handleError = buildHandleError(errorMap);
-    for await (const item of source) {
-      try {
-        const res = await fn(
-          acc,
-          item,
-          i,
-          (val) => {
-            aborted = true;
-            return val;
-          },
-          (val, resetValue) => {
-            shouldEmit = true;
-            isEmittingManually = true;
-            reset = resetValue;
-            return val;
-          }
-        );
 
-        acc = res as U;
-        i++;
-        if (shouldEmit) {
-          yield acc;
-          if (reset !== undefined) {
-            acc = reset;
-            reset = undefined;
-          }
-          shouldEmit = false;
-          continue;
-        }
-        if (aborted) {
-          break;
-        }
-      } catch (err) {
-        await handleError(err, item);
-      }
-    }
-  } else {
-    for await (const item of source) {
+  const handleError = errorMap
+    ? buildHandleError(errorMap)
+    : buildPassthroughHandleError();
+  for await (const item of source) {
+    try {
       const res = await fn(
         acc,
         item,
@@ -178,8 +148,11 @@ export async function* reduce<T, U>(
       if (aborted) {
         break;
       }
+    } catch (err) {
+      await handleError(err, item);
     }
   }
+
   if (!isEmittingManually) {
     yield acc;
   }
