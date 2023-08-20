@@ -17,18 +17,20 @@ export async function* flat<T>(source: AsyncGenerator<T>) {
   }
 }
 
-export async function* chunk<T>(source: AsyncGenerator<T>, size: number) {
-  let buffer: T[] = [];
-  for await (const item of source) {
-    buffer.push(item);
-    if (buffer.length === size) {
-      yield buffer;
-      buffer = [];
-    }
-  }
-  if (buffer.length) {
-    yield buffer;
-  }
+export function chunk<T>(source: AsyncGenerator<T>, size: number) {
+  return reduce(
+    source,
+    async (acc, val, index, done, emit) => {
+      acc.push(val);
+      if (acc.length === size) {
+        return emit(acc, []);
+      }
+      return acc;
+    },
+    [] as T[],
+    undefined,
+    true
+  );
 }
 
 export async function* map<T, U>(
@@ -104,7 +106,8 @@ export async function* reduce<T, U>(
     emit: (val: U, reset?: U) => U
   ) => Result<U>,
   initialValue: U,
-  errorMap?: ErrorMap<T, T>
+  errorMap?: ErrorMap<T, T>,
+  finalEmit = false
 ) {
   let acc = initialValue;
   let aborted = false;
@@ -133,7 +136,6 @@ export async function* reduce<T, U>(
           return val;
         }
       );
-
       acc = res as U;
       i++;
       if (shouldEmit) {
@@ -153,7 +155,7 @@ export async function* reduce<T, U>(
     }
   }
 
-  if (!isEmittingManually) {
+  if (finalEmit || !isEmittingManually) {
     yield acc;
   }
 }

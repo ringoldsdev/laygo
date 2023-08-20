@@ -57,9 +57,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
         emit: (val: U, reset?: U) => U
       ) => Result<U>,
       initialValue: U,
-      errorMap?: ErrorMap<T, T>
+      errorMap?: ErrorMap<T, T>,
+      finalEmit = false
     ) {
-      generator = reduce(generator, fn, initialValue, errorMap);
+      generator = reduce(generator, fn, initialValue, errorMap, finalEmit);
       return this;
     },
     chunk(size: number) {

@@ -31,7 +31,8 @@ export type Pipeline<T> = {
   result: () => Promise<T[]>;
   each: <U>(
     fn: (val: T) => Result<U>,
-    errorMap?: ErrorMap<T, U>
+    errorMap?: ErrorMap<T, U>,
+    finalEmit?: boolean
   ) => Result<void>;
   tap: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<T>;
   unique: () => Pipeline<T>;
@@ -49,7 +50,8 @@ export type Pipeline<T> = {
       emit: (val: U, reset?: U) => U
     ) => Result<U>,
     initialValue: U,
-    errorMap?: ErrorMap<T, T>
+    errorMap?: ErrorMap<T, T>,
+    finalEmit?: boolean
   ) => Pipeline<U>;
   groupBy: <U extends string | number | symbol>(
     fn: (data: T) => U,
