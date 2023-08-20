@@ -49,7 +49,13 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       return this;
     },
     reduce<U>(
-      fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
+      fn: (
+        acc: U,
+        val: T,
+        index: number,
+        done: (val: U) => U,
+        emit: (val: U, reset?: U) => U
+      ) => Result<U>,
       initialValue: U,
       errorMap?: ErrorMap<T, T>
     ) {

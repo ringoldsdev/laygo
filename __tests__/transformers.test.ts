@@ -98,6 +98,39 @@ describe("transformers", () => {
     expect(value).toStrictEqual(3);
   });
 
+  it("should reduce values and emit each value", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3, 4])
+      .reduce((acc, v, _index, done, emit) => {
+        return emit(acc + v);
+      }, 0)
+      .result();
+    expect(value).toStrictEqual([1, 3, 6, 10]);
+  });
+
+  it("should reduce values but emit each and reset it", async () => {
+    const value = await laygo
+      .fromArray([1, 2, 3, 4])
+      .reduce((acc, v, _index, done, emit) => {
+        return emit(acc + v, 0);
+      }, 0)
+      .result();
+    expect(value).toStrictEqual([1, 2, 3, 4]);
+  });
+
+  it("should reduce values and emit", async () => {
+    const [value] = await laygo
+      .fromArray([1, 2, 3])
+      .reduce((acc, v, _index, done) => {
+        if (acc >= 3) {
+          return done(acc);
+        }
+        return acc + v;
+      }, 0)
+      .result();
+    expect(value).toStrictEqual(3);
+  });
+
   it("should group values by key", async () => {
     const [value] = await laygo
       .fromArray([{ key: "a" }, { key: "b" }, { key: "a" }])

@@ -41,7 +41,13 @@ export type Pipeline<T> = {
   pipe: (...destinations: PipeDestination<T>[]) => Promise<void>;
   pipeFirst: (...destinations: PipeDestination<T>[]) => Promise<void>;
   reduce: <U>(
-    fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
+    fn: (
+      acc: U,
+      val: T,
+      index: number,
+      done: (val: U) => U,
+      emit: (val: U, reset?: U) => U
+    ) => Result<U>,
     initialValue: U,
     errorMap?: ErrorMap<T, T>
   ) => Pipeline<U>;

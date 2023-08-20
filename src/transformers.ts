@@ -92,45 +92,97 @@ export async function result<T>(source: AsyncGenerator<T>) {
 
 export async function* reduce<T, U>(
   source: AsyncGenerator<T>,
-  fn: (acc: U, val: T, index: number, done: (val: U) => U) => Result<U>,
+  fn: (
+    acc: U,
+    val: T,
+    index: number,
+    done: (val: U) => U,
+    emit: (val: U, reset?: U) => U
+  ) => Result<U>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>
 ) {
   let acc = initialValue;
   let aborted = false;
+  let shouldEmit = false;
+  let reset: U | undefined;
+  let isEmittingManually = false;
   let i = 0;
   if (errorMap) {
     const handleError = buildHandleError(errorMap);
     for await (const item of source) {
       try {
-        const res = await fn(acc, item, i, (val) => {
-          aborted = true;
-          return val;
-        });
+        const res = await fn(
+          acc,
+          item,
+          i,
+          (val) => {
+            aborted = true;
+            return val;
+          },
+          (val, resetValue) => {
+            shouldEmit = true;
+            isEmittingManually = true;
+            reset = resetValue;
+            return val;
+          }
+        );
+
         acc = res as U;
+        i++;
+        if (shouldEmit) {
+          yield acc;
+          if (reset !== undefined) {
+            acc = reset;
+            reset = undefined;
+          }
+          shouldEmit = false;
+          continue;
+        }
         if (aborted) {
           break;
         }
-        i++;
       } catch (err) {
         await handleError(err, item);
       }
     }
   } else {
     for await (const item of source) {
-      const res = await fn(acc, item, i, (val) => {
-        aborted = true;
-        return val;
-      });
+      const res = await fn(
+        acc,
+        item,
+        i,
+        (val) => {
+          aborted = true;
+          return val;
+        },
+        (val, resetValue) => {
+          shouldEmit = true;
+          isEmittingManually = true;
+          reset = resetValue;
+          return val;
+        }
+      );
 
       acc = res as U;
+      i++;
+      if (shouldEmit) {
+        yield acc;
+        if (reset !== undefined) {
+          acc = reset;
+          reset = undefined;
+        }
+        shouldEmit = false;
+        continue;
+      }
       if (aborted) {
         break;
       }
-      i++;
     }
   }
-  yield acc;
+  if (!isEmittingManually) {
+    yield acc;
+  }
 }
 
 export async function* tap<T, U>(
