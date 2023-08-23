@@ -231,18 +231,21 @@ export async function* uniqueBy<T, U>(
   }
 }
 
-export async function* split(
+export function split(
   source: AsyncGenerator<string>,
   separator: string | RegExp,
   limit?: number
 ) {
-  for await (const item of source) {
-    const str = item.toString();
-    const parts = str.split(separator, limit);
-    for (const part of parts) {
-      yield part;
-    }
-  }
+  return reduce(
+    source,
+    (acc, val, index, done, emit) => {
+      const parts = val.split(separator, limit);
+      for (const part of parts) {
+        emit(part);
+      }
+    },
+    ""
+  );
 }
 
 export function join(source: AsyncGenerator<string>, delimiter: string = "") {
