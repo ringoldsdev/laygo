@@ -48,7 +48,7 @@ export type Pipeline<T> = {
       index: number,
       done: (val: U) => U,
       emit: (val: U) => U
-    ) => Result<U>,
+    ) => Result<U | void>,
     initialValue: U,
     errorMap?: ErrorMap<T, T>,
     onDone?: (val: U, emit: (val: U) => U) => Result<U>

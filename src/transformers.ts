@@ -112,7 +112,7 @@ export async function* reduce<T, U>(
     index: number,
     done: (val: U) => U,
     emit: (val: U) => U
-  ) => Result<U>,
+  ) => Result<U | void>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>,
   onDone: (val: U, emit: (val: U) => U) => Result<U | void> = () => {}
@@ -142,7 +142,9 @@ export async function* reduce<T, U>(
           return val;
         }
       );
-      acc = res as U;
+      if (res !== undefined) {
+        acc = res as U;
+      }
       i++;
 
       while (emittable.length > 0) {

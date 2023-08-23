@@ -131,7 +131,7 @@ describe("transformers", () => {
       .fromArray([1, 2, 3, 4])
       .reduce((acc, v, _index, done, emit) => {
         emit(acc + v);
-        return 0;
+        return;
       }, 0)
       .result();
     expect(value).toStrictEqual([1, 2, 3, 4]);
