@@ -120,7 +120,7 @@ describe("transformers", () => {
         },
         0,
         undefined,
-        true
+        (val, done) => done(val)
       )
       .result();
     expect(value).toStrictEqual([1, 3, 6, 10]);

@@ -8,3 +8,6 @@ export * from "./producers";
 
 // TODO: implement finish function in the reduce function that runs after everything has been processed
 // TODO: implement multiple emit support in the reduce function
+
+// It's very tempting to try and make reduce work as a consumer, but I think it's better to keep it as a transformer
+// Better to create a new function that defines all consumers

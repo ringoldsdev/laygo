@@ -51,7 +51,7 @@ export type Pipeline<T> = {
     ) => Result<U>,
     initialValue: U,
     errorMap?: ErrorMap<T, T>,
-    finalEmit?: boolean
+    onDone?: (val: U, emit: (val: U) => U | void) => Result<U | void>
   ) => Pipeline<U>;
   groupBy: <U extends string | number | symbol>(
     fn: (data: T) => U,

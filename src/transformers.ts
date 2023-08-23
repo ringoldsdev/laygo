@@ -29,7 +29,7 @@ export function chunk<T>(source: AsyncGenerator<T>, size: number) {
     },
     [] as T[],
     undefined,
-    true
+    (acc, emit) => emit(acc)
   );
 }
 
@@ -107,7 +107,7 @@ export async function* reduce<T, U>(
   ) => Result<U>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>,
-  finalEmit = false
+  onDone: (val: U, emit: (val: U) => U | void) => Result<U | void> = () => {}
 ) {
   let acc = initialValue;
   let aborted = false;
@@ -155,8 +155,21 @@ export async function* reduce<T, U>(
     }
   }
 
-  if (finalEmit || !isEmittingManually) {
+  if (!isEmittingManually) {
     yield acc;
+    return;
+  }
+
+  const emittable: U[] = [];
+
+  await onDone(acc, (val) => {
+    emittable.push(val);
+  });
+
+  if (emittable.length > 0) {
+    for (const item of emittable) {
+      yield item;
+    }
   }
 }
 
