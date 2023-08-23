@@ -97,14 +97,6 @@ export async function* filter<T>(
   }
 }
 
-export async function result<T>(source: AsyncGenerator<T>) {
-  const res: T[] = [];
-  for await (const item of source) {
-    res.push(item);
-  }
-  return res;
-}
-
 export async function* reduce<T, U>(
   source: AsyncGenerator<T>,
   fn: (
@@ -199,15 +191,20 @@ export async function* tap<T, U>(
   }
 }
 
-export async function* take<T>(source: AsyncGenerator<T>, count: number) {
-  const res: T[] = [];
-  for await (const item of source) {
-    res.push(item);
-    if (res.length === count) {
-      break;
-    }
-  }
-  yield* res;
+export function take<T>(source: AsyncGenerator<T>, count: number) {
+  return reduce(
+    source,
+    (acc, val, index, done) => {
+      if (acc.length === count) {
+        return done(acc);
+      }
+      acc.push(val);
+      return acc;
+    },
+    [] as T[],
+    undefined,
+    (acc, emit) => emit(acc)
+  );
 }
 
 export async function* unique<T>(source: AsyncGenerator<T>) {

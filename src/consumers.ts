@@ -145,3 +145,11 @@ export async function each<T, U>(
     await fn(item);
   }
 }
+
+export async function result<T>(source: AsyncGenerator<T>) {
+  const res: T[] = [];
+  for await (const item of source) {
+    res.push(item);
+  }
+  return res;
+}

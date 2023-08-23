@@ -46,8 +46,12 @@ describe("transformers", () => {
     expect(value).toStrictEqual([1, 1, 2, 2, 3, 3]);
   });
   it("should take 2 values", async () => {
-    const value = await laygo.fromArray([1, 2, 3]).take(2).result();
+    const [value] = await laygo.fromArray([1, 2, 3]).take(2).result();
     expect(value).toStrictEqual([1, 2]);
+  });
+  it("should try to take 2 values even if there aren't enough of them", async () => {
+    const [value] = await laygo.fromArray([1]).take(2).result();
+    expect(value).toStrictEqual([1]);
   });
   it("should chunk values", async () => {
     const value = await laygo.fromArray([1, 2, 3]).chunk(2).result();

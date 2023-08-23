@@ -2,7 +2,7 @@ import { ReadableOptions } from "stream";
 import { ForkableGenerator, createForkableGenerator } from "./fork";
 import { PipeDestination, Pipeline, Result } from "./types";
 import { ErrorMap } from "./errors";
-import { pipe, pipeFirst, toStream, each } from "./consumers";
+import { pipe, pipeFirst, toStream, each, result } from "./consumers";
 import {
   chunk,
   filter,
@@ -10,7 +10,6 @@ import {
   join,
   map,
   reduce,
-  result,
   split,
   take,
   tap,
