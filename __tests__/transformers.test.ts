@@ -130,7 +130,8 @@ describe("transformers", () => {
     const value = await laygo
       .fromArray([1, 2, 3, 4])
       .reduce((acc, v, _index, done, emit) => {
-        return emit(acc + v, 0);
+        emit(acc + v);
+        return 0;
       }, 0)
       .result();
     expect(value).toStrictEqual([1, 2, 3, 4]);

@@ -5,25 +5,33 @@ import {
 } from "./errors";
 import { Result } from "./types";
 
-export async function* flat<T>(source: AsyncGenerator<T>) {
-  for await (const item of source) {
-    if (!Array.isArray(item)) {
-      yield item;
-      continue;
-    }
-    for (const subItem of item) {
-      yield subItem;
-    }
-  }
+export function flat<T>(source: AsyncGenerator<T>) {
+  return reduce(
+    source,
+    (acc, val, index, done, emit) => {
+      if (!Array.isArray(val)) {
+        emit(val);
+      }
+
+      for (const item of (val as T[]).flat()) {
+        emit(item as T);
+      }
+
+      return acc;
+    },
+    null as T,
+    undefined
+  );
 }
 
 export function chunk<T>(source: AsyncGenerator<T>, size: number) {
   return reduce(
     source,
-    async (acc, val, index, done, emit) => {
+    (acc, val, index, done, emit) => {
       acc.push(val);
       if (acc.length === size) {
-        return emit(acc, []);
+        emit(acc);
+        return [];
       }
       return acc;
     },
@@ -103,16 +111,15 @@ export async function* reduce<T, U>(
     val: T,
     index: number,
     done: (val: U) => U,
-    emit: (val: U, reset?: U) => U
+    emit: (val: U) => U
   ) => Result<U>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>,
-  onDone: (val: U, emit: (val: U) => U | void) => Result<U | void> = () => {}
+  onDone: (val: U, emit: (val: U) => U) => Result<U | void> = () => {}
 ) {
   let acc = initialValue;
   let aborted = false;
-  let shouldEmit = false;
-  let reset: U | undefined;
+  const emittable: U[] = [];
   let isEmittingManually = false;
   let i = 0;
 
@@ -129,24 +136,19 @@ export async function* reduce<T, U>(
           aborted = true;
           return val;
         },
-        (val, resetValue) => {
-          shouldEmit = true;
+        (val) => {
+          emittable.push(val);
           isEmittingManually = true;
-          reset = resetValue;
           return val;
         }
       );
       acc = res as U;
       i++;
-      if (shouldEmit) {
-        yield acc;
-        if (reset !== undefined) {
-          acc = reset;
-          reset = undefined;
-        }
-        shouldEmit = false;
-        continue;
+
+      while (emittable.length > 0) {
+        yield emittable.shift() as U;
       }
+
       if (aborted) {
         break;
       }
@@ -160,16 +162,13 @@ export async function* reduce<T, U>(
     return;
   }
 
-  const emittable: U[] = [];
-
   await onDone(acc, (val) => {
     emittable.push(val);
+    return val;
   });
 
-  if (emittable.length > 0) {
-    for (const item of emittable) {
-      yield item;
-    }
+  while (emittable.length > 0) {
+    yield emittable.shift() as U;
   }
 }
 
