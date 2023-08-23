@@ -245,15 +245,8 @@ export async function* split(
   }
 }
 
-export async function* join(
-  source: AsyncGenerator<string>,
-  delimiter: string = ""
-) {
-  let parts: string = "";
-  for await (const item of source) {
-    parts += item + delimiter;
-  }
-  yield parts;
+export function join(source: AsyncGenerator<string>, delimiter: string = "") {
+  return reduce(source, (acc, val) => acc + val + delimiter, "");
 }
 
 export async function* validate<T>(
