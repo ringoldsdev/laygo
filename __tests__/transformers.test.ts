@@ -33,13 +33,10 @@ describe("transformers", () => {
   });
   it("should flatten values", async () => {
     const value = await laygo
-      .fromArray([
-        [1, 2],
-        [3, 4]
-      ])
+      .fromArray([1, [2], [3, 4], ["5"]])
       .flat()
       .result();
-    expect(value).toStrictEqual([1, 2, 3, 4]);
+    expect(value).toStrictEqual([1, 2, 3, 4, "5"]);
   });
   it("should flatMap values", async () => {
     const value = await laygo

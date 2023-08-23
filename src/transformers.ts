@@ -11,9 +11,10 @@ export function flat<T>(source: AsyncGenerator<T>) {
     (acc, val, index, done, emit) => {
       if (!Array.isArray(val)) {
         emit(val);
+        return acc;
       }
 
-      for (const item of (val as T[]).flat()) {
+      for (const item of val as T[]) {
         emit(item as T);
       }
 
