@@ -37,7 +37,13 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       fn: (val: T, index: number) => Result<U>,
       errorMap?: ErrorMap<T, U>
     ) {
-      generator = map(generator, fn, errorMap);
+      generator = map(
+        generator,
+        async (val, index, emit) => {
+          emit(await fn(val, index));
+        },
+        errorMap
+      );
       return this;
     },
     filter(
@@ -74,8 +80,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       generator = flat(generator);
       return this;
     },
-    flatMap<U>(fn: (val: T) => Result<U[]>) {
-      generator = flat(map(generator, fn));
+    flatMap<U>(fn: (val: T, index: number) => Result<U[]>) {
+      generator = flat(
+        map(generator, async (val, index, emit) => emit(await fn(val, index)))
+      );
       return this;
     },
     collect() {

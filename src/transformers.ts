@@ -6,23 +6,14 @@ import {
 import { Result } from "./types";
 
 export function flat<T>(source: AsyncGenerator<T>) {
-  return reduce(
-    source,
-    (acc, val, index, done, emit) => {
-      if (!Array.isArray(val)) {
-        emit(val);
-        return acc;
-      }
-
-      for (const item of val as T[]) {
-        emit(item as T);
-      }
-
-      return acc;
-    },
-    null as T,
-    undefined
-  );
+  return map(source, (val, index, emit) => {
+    if (!Array.isArray(val)) {
+      return emit(val);
+    }
+    for (const item of val as T[]) {
+      emit(item as T);
+    }
+  });
 }
 
 export function chunk<T>(source: AsyncGenerator<T>, size: number) {
@@ -43,28 +34,45 @@ export function chunk<T>(source: AsyncGenerator<T>, size: number) {
 }
 
 export async function* map<T, U>(
-  source: Generator<T> | AsyncGenerator<T>,
-  fn: (val: T, index: number) => Result<U>,
+  source: AsyncGenerator<T>,
+  fn: (
+    val: T,
+    index: number,
+    emit: (val: U) => void,
+    done: (val: U) => void
+  ) => Result<void>,
   errorMap?: ErrorMap<T, U>
 ) {
   let i = 0;
-  if (errorMap) {
-    const handleError = buildHandleError(errorMap);
-    for await (const item of source) {
-      try {
-        yield await fn(item, i);
-        i++;
-      } catch (err) {
-        const res = await handleError(err, item);
-        if (res !== undefined) yield res;
-      }
-    }
-    return;
-  }
+  const emittable: U[] = [];
+  let done = false;
+
+  const handleError = errorMap
+    ? buildHandleError(errorMap)
+    : buildPassthroughHandleError();
 
   for await (const item of source) {
-    yield fn(item, i);
-    i++;
+    try {
+      await fn(
+        item,
+        i,
+        (val) => {
+          emittable.push(val);
+        },
+        (val) => {
+          emittable.push(val);
+          done = true;
+        }
+      );
+      while (emittable.length > 0) {
+        yield emittable.shift() as U;
+      }
+      if (done) break;
+      i++;
+    } catch (err) {
+      const res = await handleError(err, item);
+      if (res !== undefined) yield res;
+    }
   }
 }
 

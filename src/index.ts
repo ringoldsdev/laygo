@@ -11,3 +11,5 @@ export * from "./producers";
 
 // It's very tempting to try and make reduce work as a consumer, but I think it's better to keep it as a transformer
 // Better to create a new function that defines all consumers
+
+// TODO: implement a generic map function that can emit and end processing
