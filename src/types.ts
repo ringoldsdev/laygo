@@ -1,3 +1,4 @@
+// eslint-disable @typescript-eslint/no-explicit-any
 import { Readable, ReadableOptions, Writable } from "stream";
 import { ErrorMap } from "./errors";
 
@@ -34,7 +35,10 @@ export type Pipeline<T> = {
     errorMap?: ErrorMap<T, U>,
     finalEmit?: boolean
   ) => Result<void>;
-  tap: <U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) => Pipeline<T>;
+  tap: (
+    fn: (val: T, index: number) => Result<any>,
+    errorMap?: ErrorMap<T, T>
+  ) => Pipeline<T>;
   unique: () => Pipeline<T>;
   uniqueBy: <U>(fn: (data: T) => U) => Pipeline<T>;
   toGenerator: () => AsyncGenerator<T>;

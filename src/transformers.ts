@@ -76,33 +76,20 @@ export async function* map<T, U>(
   }
 }
 
-export async function* filter<T>(
-  source: Generator<T> | AsyncGenerator<T>,
+export function filter<T>(
+  source: AsyncGenerator<T>,
   fn: (val: T, index: number) => Result<boolean>,
   errorMap?: ErrorMap<T, T>
 ) {
-  let i = 0;
-  if (errorMap) {
-    const handleError = buildHandleError(errorMap);
-    for await (const item of source) {
-      try {
-        if (await fn(item, i)) {
-          yield item;
-        }
-        i++;
-      } catch (err) {
-        const res = await handleError(err, item);
-        if (res !== undefined) yield res;
+  return map(
+    source,
+    (val, index, emit) => {
+      if (fn(val, index)) {
+        emit(val);
       }
-    }
-    return;
-  }
-  for await (const item of source) {
-    if (await fn(item, i)) {
-      yield item;
-    }
-    i++;
-  }
+    },
+    errorMap
+  );
 }
 
 export async function* reduce<T, U>(
@@ -111,8 +98,8 @@ export async function* reduce<T, U>(
     acc: U,
     val: T,
     index: number,
-    done: (val: U) => U,
-    emit: (val: U) => U
+    emit: (val: U) => U,
+    done: (val: U) => U
   ) => Result<U | void>,
   initialValue: U,
   errorMap?: ErrorMap<T, T>,
@@ -175,28 +162,19 @@ export async function* reduce<T, U>(
   }
 }
 
-export async function* tap<T, U>(
+export function tap<T>(
   source: AsyncGenerator<T>,
-  fn: (val: T) => Result<U>,
-  errorMap?: ErrorMap<T, U>
+  fn: (val: T, index: number) => any,
+  errorMap?: ErrorMap<T, T>
 ) {
-  if (errorMap) {
-    const handleError = buildHandleError(errorMap);
-
-    for await (const item of source) {
-      try {
-        await fn(item);
-      } catch (err) {
-        await handleError(err, item);
-      }
-      yield item;
-    }
-    return;
-  }
-  for await (const item of source) {
-    await fn(item);
-    yield item;
-  }
+  return map(
+    source,
+    async (val, index, emit) => {
+      await fn(val, index);
+      emit(val);
+    },
+    errorMap
+  );
 }
 
 export function take<T>(source: AsyncGenerator<T>, count: number) {

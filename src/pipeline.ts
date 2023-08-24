@@ -19,9 +19,8 @@ import {
 } from "./transformers";
 
 export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let generator: AsyncGenerator<any> = source;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let forkedGenerator: ForkableGenerator<any>;
 
   return {
@@ -99,7 +98,7 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     each<U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) {
       return each(generator, fn, errorMap);
     },
-    tap<U>(fn: (val: T) => Result<U>, errorMap?: ErrorMap<T, U>) {
+    tap(fn: (val: T, index: number) => Result<any>, errorMap?: ErrorMap<T, T>) {
       generator = tap(generator, fn, errorMap);
       return this;
     },
