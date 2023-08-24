@@ -230,20 +230,6 @@ describe("transformer error handling", () => {
 
     expect(res).toStrictEqual([0, 0, 0]);
   });
-  it("should validate data", async () => {
-    const fn = () =>
-      laygo
-        .fromArray([1, 2, 3])
-        .validate(
-          (v) => v > 2,
-          (v) => {
-            throw new Error(`${v} is less than or equal to 2`);
-          }
-        )
-        .result();
-
-    expect(fn).rejects.toStrictEqual(new Error("1 is less than or equal to 2"));
-  });
   it("should reduce and catch errors", async () => {
     const fn = () =>
       laygo

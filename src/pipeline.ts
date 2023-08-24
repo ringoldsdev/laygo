@@ -14,8 +14,7 @@ import {
   take,
   tap,
   unique,
-  uniqueBy,
-  validate
+  uniqueBy
 } from "./transformers";
 
 export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
@@ -143,13 +142,6 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
         forkedGenerator = createForkableGenerator(generator);
       }
       return pipeline(forkedGenerator.fork());
-    },
-    validate(
-      fn: (data: T) => Result<boolean>,
-      errFn: (data: T) => Result<void>
-    ) {
-      generator = validate(generator, fn, errFn);
-      return this;
     }
   };
 }

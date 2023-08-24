@@ -193,28 +193,20 @@ export function take<T>(source: AsyncGenerator<T>, count: number) {
   );
 }
 
-export async function* unique<T>(source: AsyncGenerator<T>) {
-  const res = new Set<T>();
-  for await (const item of source) {
-    if (!res.has(item)) {
-      res.add(item);
-      yield item;
+export function uniqueBy<T, U>(source: AsyncGenerator<T>, fn: (data: T) => U) {
+  const items = new Set<U>();
+  return filter(source, (item) => {
+    const val = fn(item);
+    if (items.has(val)) {
+      return false;
     }
-  }
+    items.add(val);
+    return true;
+  });
 }
 
-export async function* uniqueBy<T, U>(
-  source: AsyncGenerator<T>,
-  fn: (data: T) => U
-) {
-  const res = new Set<U>();
-  for await (const item of source) {
-    const val = fn(item);
-    if (!res.has(val)) {
-      res.add(val);
-      yield item;
-    }
-  }
+export function unique<T>(source: AsyncGenerator<T>) {
+  return uniqueBy(source, (val) => val);
 }
 
 export function split(
@@ -222,31 +214,14 @@ export function split(
   separator: string | RegExp,
   limit?: number
 ) {
-  return reduce(
-    source,
-    (acc, val, index, done, emit) => {
-      const parts = val.split(separator, limit);
-      for (const part of parts) {
-        emit(part);
-      }
-    },
-    ""
-  );
+  return map(source, (val, index, emit) => {
+    const parts = val.split(separator, limit);
+    for (const part of parts) {
+      emit(part);
+    }
+  });
 }
 
 export function join(source: AsyncGenerator<string>, delimiter: string = "") {
   return reduce(source, (acc, val) => acc + val + delimiter, "");
-}
-
-export async function* validate<T>(
-  source: AsyncGenerator<T>,
-  fn: (data: T) => Result<boolean>,
-  errFn: (data: T) => Result<void>
-) {
-  for await (const item of source) {
-    if (!(await fn(item))) {
-      await errFn(item);
-    }
-    yield item;
-  }
 }

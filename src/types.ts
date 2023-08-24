@@ -70,8 +70,4 @@ export type Pipeline<T> = {
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
   fork: () => Pipeline<T>;
-  validate: (
-    fn: (data: T) => Result<boolean>,
-    errFn: (data: T) => Result<void>
-  ) => Pipeline<T>;
 };
