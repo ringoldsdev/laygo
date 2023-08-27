@@ -13,3 +13,6 @@ export * from "./producers";
 // Better to create a new function that defines all consumers
 
 // TODO: implement a generic map function that can emit and end processing
+
+// TODO: implement a buffer function that accumulates data from upstream and emits it downstream
+// TODO: add another property to all functions - context. Context should be fully extendable and it should be type safe by default. Every time context changes get made, they should get reflected in downstream functions

@@ -142,6 +142,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
         forkedGenerator = createForkableGenerator(generator);
       }
       return pipeline(forkedGenerator.fork());
+    },
+    await(fn: (data: T, index: number) => Promise<void>) {
+      generator = tap(generator, fn);
+      return this;
     }
   };
 }

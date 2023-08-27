@@ -1,6 +1,8 @@
 import * as laygo from "@src/index";
 import { Helpers } from "@src/helpers";
 import { Pipeline } from "@src/types";
+import { EventEmitter } from "stream";
+import { once } from "events";
 
 describe("transformers", () => {
   it("should map values", async () => {
@@ -268,5 +270,25 @@ describe("transformer error handling", () => {
         .result();
 
     expect(fn).rejects.toStrictEqual(new Error("Bad number 2"));
+  });
+  it("should await callback", async () => {
+    const e = new EventEmitter();
+    e.on("sleep", (duration: number) => {
+      setTimeout(() => {
+        e.emit("callback");
+      }, duration);
+    });
+
+    const res = await laygo
+      .from(1)
+      .tap(() => {
+        e.emit("sleep", 10);
+      })
+      .await(async () => {
+        await once(e, "callback");
+      })
+      .result();
+
+    expect(res).toStrictEqual([1]);
   });
 });
