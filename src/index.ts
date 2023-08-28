@@ -9,3 +9,5 @@ export * from "./producers";
 
 // TODO: add another property to all functions - context. Context should be fully extendable and it should be type safe by default. Every time context changes get made, they should get reflected in downstream functions
 // TODO: implement parallel function that requires an array of items so that it can take all items and run them in parallel. All responses get returned as an array or as they finish. Settings can be changed as needed
+// TODO: implement retry wrapper function that takes a function and retries it a certain number of times. Optionally specify a fixed delay or a delay function
+// TODO: implement unordered buffer so that the buffer can return the first value that finishes processing
