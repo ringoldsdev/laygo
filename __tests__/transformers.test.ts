@@ -352,18 +352,17 @@ describe("transformer error handling", () => {
 
     const res = await laygo
       .fromArray([2, 3])
-      .eagerMap((itemCount) => {
-        return new Array(itemCount).fill(0).map((_, i) => {
-          return new Promise((resolve) => {
-            setTimeout(
-              () => {
-                resolve(i);
-              },
-              (itemCount - i) * loadTimeout
+      .map((itemCount) => {
+        return new Array(itemCount).fill(0).map((_, i) =>
+          (async () => {
+            await new Promise((resolve) =>
+              setTimeout(resolve, (itemCount - i) * loadTimeout)
             );
-          });
-        }) as Promise<number>[];
+            return i;
+          })()
+        );
       })
+      .eager()
       .result();
 
     expect(res).toStrictEqual([1, 0, 2, 1, 0]);

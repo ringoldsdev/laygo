@@ -241,3 +241,15 @@ export async function* buffer<T>(source: AsyncGenerator<T>, size: number) {
     queue.push(source.next());
   }
 }
+
+export async function* eager<T>(source: AsyncGenerator<Promise<T>[]>) {
+  for await (const promises of source) {
+    while (promises.length > 0) {
+      const index = await Promise.race(
+        promises.map((promise, i) => promise.then(() => i))
+      );
+      yield await promises[index];
+      promises.splice(index, 1);
+    }
+  }
+}

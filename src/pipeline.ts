@@ -1,11 +1,12 @@
 import { ReadableOptions } from "stream";
 import { ForkableGenerator, createForkableGenerator } from "./fork";
-import { PipeDestination, Pipeline, Result } from "./types";
+import { PipeDestination, Pipeline, Result, Unarray } from "./types";
 import { ErrorMap } from "./errors";
 import { pipe, pipeFirst, toStream, each, result } from "./consumers";
 import {
   buffer,
   chunk,
+  eager,
   filter,
   flat,
   join,
@@ -40,26 +41,6 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
         generator,
         async (val, index, emit) => {
           emit(await fn(val, index));
-        },
-        errorMap
-      );
-      return this;
-    },
-    eagerMap<U>(
-      fn: (val: T, index: number) => Promise<U>[],
-      errorMap?: ErrorMap<T, U>
-    ) {
-      generator = map(
-        generator,
-        async (val, index, emit) => {
-          const results = fn(val, index);
-          while (results.length > 0) {
-            const index = await Promise.race(
-              results.map((promise, i) => promise.then(() => i))
-            );
-            emit(await results[index]);
-            results.splice(index, 1);
-          }
         },
         errorMap
       );
@@ -171,6 +152,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     buffer(size: number): Pipeline<T> {
       generator = buffer(generator, size);
       return this;
+    },
+    eager(this: Pipeline<Promise<Awaited<Unarray<T>>>[]>) {
+      generator = eager(generator);
+      return this as unknown as Pipeline<T>;
     }
   };
 }

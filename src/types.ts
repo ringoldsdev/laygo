@@ -3,7 +3,7 @@ import { Readable, ReadableOptions, Writable } from "stream";
 import { ErrorMap } from "./errors";
 
 export type Result<T> = T | Promise<T>;
-type Unarray<T> = T extends Array<infer U> ? U : T;
+export type Unarray<T> = T extends Array<infer U> ? U : T;
 
 export type ExistingPipeline<T, U> = (source: Pipeline<T>) => U;
 
@@ -17,10 +17,6 @@ export type PipeDestination<T> = Writable | ConditionalWriteable<T>;
 export type Pipeline<T> = {
   map: <U>(
     fn: (val: T, index: number) => Result<U>,
-    errorMap?: ErrorMap<T, U>
-  ) => Pipeline<U>;
-  eagerMap: <U>(
-    fn: (val: T, index: number) => Promise<U>[],
     errorMap?: ErrorMap<T, U>
   ) => Pipeline<U>;
   filter: (
@@ -76,4 +72,5 @@ export type Pipeline<T> = {
   fork: () => Pipeline<T>;
   await: (fn: (data: T, index: number) => Promise<any>) => Pipeline<T>;
   buffer: (size: number) => Pipeline<T>;
+  eager: (this: Pipeline<Promise<Awaited<Unarray<T>>>[]>) => Pipeline<T>;
 };
