@@ -19,6 +19,10 @@ export type Pipeline<T> = {
     fn: (val: T, index: number) => Result<U>,
     errorMap?: ErrorMap<T, U>
   ) => Pipeline<U>;
+  eagerMap: <U>(
+    fn: (val: T, index: number) => Promise<U>[],
+    errorMap?: ErrorMap<T, U>
+  ) => Pipeline<U>;
   filter: (
     fn: (val: T, index: number) => Result<boolean>,
     errorMap?: ErrorMap<T, T>

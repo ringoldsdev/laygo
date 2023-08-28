@@ -346,4 +346,26 @@ describe("transformer error handling", () => {
       processTimeout * itemCount + loadTimeout * itemCount
     );
   });
+
+  it("should eagerly process data", async () => {
+    const loadTimeout = 2;
+
+    const res = await laygo
+      .fromArray([2, 3])
+      .eagerMap((itemCount) => {
+        return new Array(itemCount).fill(0).map((_, i) => {
+          return new Promise((resolve) => {
+            setTimeout(
+              () => {
+                resolve(i);
+              },
+              (itemCount - i) * loadTimeout
+            );
+          });
+        }) as Promise<number>[];
+      })
+      .result();
+
+    expect(res).toStrictEqual([1, 0, 2, 1, 0]);
+  });
 });

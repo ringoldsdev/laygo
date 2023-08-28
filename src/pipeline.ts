@@ -45,6 +45,26 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
       );
       return this;
     },
+    eagerMap<U>(
+      fn: (val: T, index: number) => Promise<U>[],
+      errorMap?: ErrorMap<T, U>
+    ) {
+      generator = map(
+        generator,
+        async (val, index, emit) => {
+          const results = fn(val, index);
+          while (results.length > 0) {
+            const index = await Promise.race(
+              results.map((promise, i) => promise.then(() => i))
+            );
+            emit(await results[index]);
+            results.splice(index, 1);
+          }
+        },
+        errorMap
+      );
+      return this;
+    },
     filter(
       fn: (val: T, index: number) => Result<boolean>,
       errorMap?: ErrorMap<T, T>

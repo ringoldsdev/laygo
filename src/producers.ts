@@ -18,10 +18,7 @@ export async function* promiseGenerator<T>(...sources: Promise<T>[]) {
 }
 
 export async function* eagerPromiseGenerator<T>(...sources: Promise<T>[]) {
-  const results: Array<Promise<T>> = sources.map((p) =>
-    p.then((result) => result)
-  );
-
+  const results: Array<Promise<T>> = sources.map((p) => p);
   while (results.length > 0) {
     const index = await Promise.race(
       results.map((promise, i) => promise.then(() => i))
