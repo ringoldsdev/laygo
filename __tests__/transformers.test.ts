@@ -291,4 +291,59 @@ describe("transformer error handling", () => {
 
     expect(res).toStrictEqual([1]);
   });
+
+  it("should buffer data for a slow consumer", async () => {
+    const loadTimeout = 2;
+    const processTimeout = 3;
+    const itemCount = 50;
+
+    const startTime = process.hrtime();
+    await laygo
+      .fromGenerator(
+        (async function* () {
+          let i = 0;
+          while (i < itemCount) {
+            await new Promise((resolve) => setTimeout(resolve, loadTimeout));
+            yield i;
+            i++;
+          }
+        })()
+      )
+      .each(async (_) => {
+        await new Promise((resolve) => setTimeout(resolve, processTimeout));
+      });
+
+    const endTime = process.hrtime(startTime);
+    const endTimeMilliseconds = endTime[0] * 1000 + endTime[1] / 1000000;
+
+    const startTimeBuffered = process.hrtime();
+    await laygo
+      .fromGenerator(
+        (async function* () {
+          let i = 0;
+          while (i < itemCount) {
+            await new Promise((resolve) => setTimeout(resolve, loadTimeout));
+            yield i;
+            i++;
+          }
+        })()
+      )
+      .buffer(2)
+      .each(async (_) => {
+        await new Promise((resolve) => setTimeout(resolve, processTimeout));
+      });
+
+    const endTimeBuffered = process.hrtime(startTimeBuffered);
+    const endTimeMillisecondsBuffered =
+      endTimeBuffered[0] * 1000 + endTimeBuffered[1] / 1000000;
+
+    expect(endTimeMilliseconds).toBeGreaterThan(endTimeMillisecondsBuffered);
+
+    expect(endTimeMillisecondsBuffered).toBeGreaterThanOrEqual(
+      processTimeout * itemCount + loadTimeout
+    );
+    expect(endTimeMillisecondsBuffered).toBeLessThanOrEqual(
+      processTimeout * itemCount + loadTimeout * itemCount
+    );
+  });
 });

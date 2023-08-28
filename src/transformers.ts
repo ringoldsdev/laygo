@@ -225,3 +225,19 @@ export function split(
 export function join(source: AsyncGenerator<string>, delimiter: string = "") {
   return reduce(source, (acc, val) => acc + val + delimiter, "");
 }
+
+export async function* buffer<T>(source: AsyncGenerator<T>, size: number) {
+  const queue: Promise<IteratorResult<T, any>>[] = [];
+
+  while (queue.length < size) {
+    queue.push(source.next());
+  }
+
+  while (queue.length > 0) {
+    const res = await queue.shift();
+    if (!res) continue;
+    if (res?.done) break;
+    yield res.value;
+    queue.push(source.next());
+  }
+}

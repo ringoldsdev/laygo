@@ -70,5 +70,6 @@ export type Pipeline<T> = {
   ) => Pipeline<string>;
   join: (this: Pipeline<string>, delimiter?: string) => Pipeline<string>;
   fork: () => Pipeline<T>;
-  await: (fn: (data: T) => Promise<void>) => Pipeline<T>;
+  await: (fn: (data: T, index: number) => Promise<any>) => Pipeline<T>;
+  buffer: (size: number) => Pipeline<T>;
 };

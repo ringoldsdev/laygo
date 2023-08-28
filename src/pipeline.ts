@@ -4,6 +4,7 @@ import { PipeDestination, Pipeline, Result } from "./types";
 import { ErrorMap } from "./errors";
 import { pipe, pipeFirst, toStream, each, result } from "./consumers";
 import {
+  buffer,
   chunk,
   filter,
   flat,
@@ -145,6 +146,10 @@ export function pipeline<T>(source: AsyncGenerator<T>): Pipeline<T> {
     },
     await(fn: (data: T, index: number) => Promise<void>) {
       generator = tap(generator, fn);
+      return this;
+    },
+    buffer(size: number): Pipeline<T> {
+      generator = buffer(generator, size);
       return this;
     }
   };
